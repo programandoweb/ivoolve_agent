@@ -6,25 +6,25 @@ on:
   pull_request:
 
 jobs:
-  build:
+  backend-build:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        # El backend es un proyecto independiente dentro del monorepo.
+        working-directory: backend
+
     steps:
-      # Descargamos exactamente el código del commit que disparó el workflow.
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Instalamos Node.js estable para ejecutar NestJS y TypeScript.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
-      # npm install respeta las dependencias declaradas en package.json.
-      - name: Install dependencies
+      - name: Install backend dependencies
         run: npm install
 
-      # El build detecta errores reales de TypeScript y configuración NestJS.
-      - name: Build
+      - name: Build NestJS backend
         run: npm run build

@@ -1,101 +1,51 @@
 # Ivoolve Agent
 
-Monorepo didáctico para aprender a construir agentes de IA reales con NestJS.
-
-El objetivo no es solamente que funcione: el código y la documentación están diseñados para estudiar cómo se mantiene estado, cómo se llama un LLM y cómo varios agentes podrán delegarse trabajo.
-
-## Arquitectura inicial
-
-```text
-Usuario
-   |
-   v
-NestJS / Orchestrator
-   |
-   v
-Jorge
-   |
-   +----> Agent Registry
-   +----> Redis (estado)
-   +----> LLM (LM Studio compatible)
-   +----> BullMQ (trabajos largos)
-   |
-   v
-Respuesta
-```
+Monorepo para construir y estudiar un ecosistema de agentes de IA.
 
 ## Estructura
 
 ```text
 ivoolve_agent/
-├── apps/
-│   └── orchestrator/
-├── agents/
-│   └── jorge/
-│       ├── Agent.md
-│       ├── Memory.md
-│       └── Tools.md
-├── docs/
-│   ├── decisions/
-│   ├── learning/
-│   ├── progress/
-│   └── setup/
-├── scripts/
-├── Agent.md
-├── AGENTS.md
-├── docker-compose.yml
-└── package.json
+├── backend/              # NestJS + agentes + Redis + BullMQ + documentación técnica
+├── frontend/             # Próxima aplicación Next.js
+├── .github/              # Automatización global del repositorio
+├── Agent.md              # Metodología global
+├── AGENTS.md             # Entrada rápida para agentes de desarrollo
+└── README.md
 ```
 
-## Jorge
+## Backend
 
-Jorge es:
-
-- agente principal;
-- fallback;
-- futuro orquestador;
-- punto de entrada cuando no exista un especialista.
-
-## Instalación
+Toda la implementación actual vive en `backend/`.
 
 ```powershell
-git clone https://github.com/programandoweb/ivoolve_agent.git
-cd ivoolve_agent
-powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
+cd backend
+Copy-Item .env.example .env
+npm install
+docker compose up -d redis
 npm run start:dev
 ```
 
-## Endpoints
+API por defecto: `http://localhost:4000`.
 
-### Estado
+## Frontend
 
-```http
-GET /health
+Se creará posteriormente como proyecto independiente en:
+
+```text
+frontend/
 ```
 
-### Agentes registrados
-
-```http
-GET /agents
-```
-
-### Conversar
-
-```http
-POST /agents/chat
-Content-Type: application/json
-
-{
-  "sessionId": "clase-1",
-  "message": "Hola Jorge, explícame cómo recuerdas esta conversación."
-}
-```
+La separación evita mezclar dependencias, configuración y responsabilidades entre NestJS y Next.js.
 
 ## Sistema de trabajo
 
-Antes de tocar código leer `Agent.md`.
+La metodología global está en `Agent.md`.
 
-Todo avance relevante debe registrarse en `docs/progress/`.
-Toda decisión de arquitectura debe registrarse en `docs/decisions/`.
+Para cambios del backend, revisar también:
 
-El repositorio debe poder explicar no solo **qué hace**, sino **por qué fue construido así**.
+- `backend/Agent.md`
+- `backend/docs/progress/`
+- `backend/docs/decisions/`
+
+Cada avance y decisión relevante debe quedar documentado antes de considerar terminada una tarea.
