@@ -1,0 +1,18 @@
+services:
+  redis:
+    # Redis funciona como memoria operativa y backend de BullMQ.
+    image: redis:7-alpine
+    container_name: ivoolve-agent-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ivoolve_agent_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  ivoolve_agent_redis_data:

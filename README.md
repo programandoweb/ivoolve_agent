@@ -1,113 +1,101 @@
 # Ivoolve Agent
 
-Monorepo didáctico para aprender a construir agentes de IA con NestJS.
+Monorepo didáctico para aprender a construir agentes de IA reales con NestJS.
 
-> Objetivo: que el código se pueda estudiar paso a paso. Por eso los archivos TypeScript incluyen comentarios que explican la responsabilidad de cada bloque y el flujo de ejecución.
+El objetivo no es solamente que funcione: el código y la documentación están diseñados para estudiar cómo se mantiene estado, cómo se llama un LLM y cómo varios agentes podrán delegarse trabajo.
 
-## Idea principal
-
-Un agente **no está vivo dentro de una petición HTTP**. Cada petición ejecuta un ciclo corto:
+## Arquitectura inicial
 
 ```text
 Usuario
    |
    v
-NestJS API
+NestJS / Orchestrator
    |
    v
-Jorge (orquestador / fallback)
+Jorge
    |
-   +----> Redis: recupera estado y memoria de ejecución
-   |
-   +----> Registry: descubre agentes disponibles
-   |
-   +----> Router: decide quién debe resolver la tarea
-   |
-   +----> Agente especializado (cuando exista)
-   |
-   v
-Redis: persiste el nuevo estado
+   +----> Agent Registry
+   +----> Redis (estado)
+   +----> LLM (LM Studio compatible)
+   +----> BullMQ (trabajos largos)
    |
    v
 Respuesta
 ```
 
-Redis es el lugar donde guardamos el estado operativo entre una petición y la siguiente. Los archivos Markdown de cada agente describen identidad, reglas, memoria base y herramientas.
-
 ## Estructura
 
 ```text
 ivoolve_agent/
-├─ apps/
-│  └─ orchestrator/        # API NestJS y runtime multiagente
-├─ agents/
-│  └─ jorge/               # Primer agente: orquestador y fallback
-│     ├─ Agent.md
-│     ├─ Memory.md
-│     └─ Tools.md
-├─ docs/
-│  ├─ 01-como-funciona-un-agente.md
-│  ├─ 02-redis-y-el-estado.md
-│  └─ 03-crear-un-nuevo-agente.md
-├─ docker-compose.yml
-├─ .env.example
-├─ nest-cli.json
-├─ package.json
-└─ tsconfig.json
+├── apps/
+│   └── orchestrator/
+├── agents/
+│   └── jorge/
+│       ├── Agent.md
+│       ├── Memory.md
+│       └── Tools.md
+├── docs/
+│   ├── decisions/
+│   ├── learning/
+│   ├── progress/
+│   └── setup/
+├── scripts/
+├── Agent.md
+├── AGENTS.md
+├── docker-compose.yml
+└── package.json
 ```
 
-## Requisitos
+## Jorge
 
-- Node.js 22+
-- npm 10+
-- Docker Desktop o Redis local
+Jorge es:
 
-## Inicio rápido
+- agente principal;
+- fallback;
+- futuro orquestador;
+- punto de entrada cuando no exista un especialista.
 
-```bash
-copy .env.example .env
-npm install
-docker compose up -d redis
+## Instalación
+
+```powershell
+git clone https://github.com/programandoweb/ivoolve_agent.git
+cd ivoolve_agent
+powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 npm run start:dev
 ```
 
-API: `http://localhost:4000`
+## Endpoints
 
-### Probar salud
+### Estado
 
-```bash
-curl http://localhost:4000/health
+```http
+GET /health
 ```
 
-### Hablar con Jorge
+### Agentes registrados
 
-```bash
-curl -X POST http://localhost:4000/agents/chat ^
-  -H "Content-Type: application/json" ^
-  -d "{\"sessionId\":\"jorge-clase-1\",\"message\":\"Explícame qué agentes tienes disponibles\"}"
+```http
+GET /agents
 ```
 
-## Principio de diseño
+### Conversar
 
-Cada nuevo agente vive en su propia carpeta:
+```http
+POST /agents/chat
+Content-Type: application/json
 
-```text
-agents/pedro/
-├─ Agent.md
-├─ Memory.md
-└─ Tools.md
+{
+  "sessionId": "clase-1",
+  "message": "Hola Jorge, explícame cómo recuerdas esta conversación."
+}
 ```
 
-El runtime descubre automáticamente las carpetas de `agents/`. No se debe crear un `switch` gigante por agente.
+## Sistema de trabajo
 
-## Primer objetivo de aprendizaje
+Antes de tocar código leer `Agent.md`.
 
-1. Entender la diferencia entre API, agente y estado.
-2. Entender por qué Redis permite continuar una conversación.
-3. Ver cómo Jorge consulta el registro de agentes.
-4. Agregar luego un agente `Pedro` y permitir que Jorge delegue tareas.
-5. Después incorporar herramientas reales, colas BullMQ y proveedores LLM adicionales.
+Todo avance relevante debe registrarse en `docs/progress/`.
+Toda decisión de arquitectura debe registrarse en `docs/decisions/`.
 
-## Estado actual
-
-Esta primera base deja preparada la arquitectura multiagente, persistencia de sesión en Redis, proveedor LLM compatible con OpenAI/LM Studio, registro dinámico de agentes, documentación didáctica y Docker para Redis.
+El repositorio debe poder explicar no solo **qué hace**, sino **por qué fue construido así**.
