@@ -11,7 +11,6 @@ jobs:
 
     defaults:
       run:
-        # El backend es un proyecto independiente dentro del monorepo.
         working-directory: backend
 
     steps:
@@ -27,4 +26,26 @@ jobs:
         run: npm install
 
       - name: Build NestJS backend
+        run: npm run build
+
+  frontend-build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Build Next.js frontend
         run: npm run build

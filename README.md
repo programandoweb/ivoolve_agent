@@ -6,17 +6,15 @@ Monorepo para construir y estudiar un ecosistema de agentes de IA.
 
 ```text
 ivoolve_agent/
-├── backend/              # NestJS + agentes + Redis + BullMQ + documentación técnica
-├── frontend/             # Próxima aplicación Next.js
-├── .github/              # Automatización global del repositorio
-├── Agent.md              # Metodología global
-├── AGENTS.md             # Entrada rápida para agentes de desarrollo
+├── backend/              # NestJS + agentes + Redis + BullMQ
+├── frontend/             # Next.js + Tailwind + BFF hacia NestJS
+├── .github/              # CI del monorepo
+├── Agent.md
+├── AGENTS.md
 └── README.md
 ```
 
 ## Backend
-
-Toda la implementación actual vive en `backend/`.
 
 ```powershell
 cd backend
@@ -26,26 +24,45 @@ docker compose up -d redis
 npm run start:dev
 ```
 
-API por defecto: `http://localhost:4000`.
+Backend: `http://localhost:4000`
 
 ## Frontend
 
-Se creará posteriormente como proyecto independiente en:
+En otra terminal:
 
-```text
-frontend/
+```powershell
+cd frontend
+Copy-Item .env.example .env.local
+npm install
+npm run dev
 ```
 
-La separación evita mezclar dependencias, configuración y responsabilidades entre NestJS y Next.js.
+Frontend: `http://localhost:3000`
+
+## Flujo
+
+```text
+Browser
+   |
+   v
+Next.js :3000
+   |
+   v
+BFF /api/backend/*
+   |
+   v
+NestJS :4000
+   |
+   +--> Redis
+   +--> Jorge
+   +--> LLM
+```
 
 ## Sistema de trabajo
 
-La metodología global está en `Agent.md`.
+Cada servicio tiene su propio `Agent.md`, documentación de decisiones y bitácora de progreso.
 
-Para cambios del backend, revisar también:
+- Backend: `backend/docs/`
+- Frontend: `frontend/docs/`
 
-- `backend/Agent.md`
-- `backend/docs/progress/`
-- `backend/docs/decisions/`
-
-Cada avance y decisión relevante debe quedar documentado antes de considerar terminada una tarea.
+Las decisiones y avances relevantes deben quedar documentados antes de considerar una fase terminada.
