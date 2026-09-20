@@ -1,0 +1,30 @@
+name: Validate Ivoolve Agent
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Descargamos exactamente el código del commit que disparó el workflow.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Instalamos Node.js estable para ejecutar NestJS y TypeScript.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # npm install respeta las dependencias declaradas en package.json.
+      - name: Install dependencies
+        run: npm install
+
+      # El build detecta errores reales de TypeScript y configuración NestJS.
+      - name: Build
+        run: npm run build

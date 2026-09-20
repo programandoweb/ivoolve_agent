@@ -20,6 +20,7 @@ Se requiere NestJS, Redis, múltiples carpetas de agentes, Jorge como fallback/o
 - Definiciones declarativas en `agents/`.
 - LLM desacoplado mediante adapter compatible con OpenAI/LM Studio.
 - Sistema documental equivalente al enfoque usado en ivoolveERP.
+- CI automática para validar instalación y compilación en cada push.
 
 ## Alcance
 
@@ -27,7 +28,7 @@ Se creó la infraestructura inicial, el runtime síncrono, registro dinámico de
 
 ## Archivos afectados
 
-Ver commit de esta fase. Incluye raíz, `apps/orchestrator`, `agents/jorge`, `docs` y scripts.
+Incluye raíz, `apps/orchestrator`, `agents/jorge`, `docs`, scripts y workflow de CI.
 
 ## Cambios realizados
 
@@ -42,40 +43,48 @@ Ver commit de esta fase. Incluye raíz, `apps/orchestrator`, `agents/jorge`, `do
 - Docker Compose Redis.
 - instalación Windows.
 - metodología documental.
+- CI de instalación y compilación.
 
 ## Pruebas ejecutadas
 
-No se ejecutaron pruebas locales desde el conector remoto de GitHub.
+Se intentó clonar el repositorio desde un entorno de ejecución aislado para ejecutar `npm install` y `npm run build`.
 
-La validación de compilación debe realizarse después de clonar/actualizar el repositorio y ejecutar `npm install`.
+La prueba no pudo comenzar porque ese entorno no pudo resolver `github.com` por DNS.
+
+Por lo tanto, no se afirma que el build haya pasado localmente.
+
+Se agregó GitHub Actions para ejecutar automáticamente:
+
+1. `npm install`;
+2. `npm run build`.
 
 ## Resultado
 
-Base funcional escrita y preparada para instalación.
+Base escrita, publicada en `main` y preparada para instalación y validación automática.
 
 ## Riesgos
 
 - El modelo configurado en LM Studio debe existir.
-- Redis debe estar iniciado.
+- Redis debe estar iniciado para ejecutar el runtime.
 - Falta todavía routing real hacia un segundo agente.
+- Hasta que CI o el entorno local ejecuten el build, pueden existir errores de compilación no detectados.
 
 ## Fuera de alcance
 
 - memoria vectorial;
 - base durable;
-- tools reales externas;
+- tools externas reales;
 - websocket;
 - frontend;
 - segundo agente.
 
 ## Pendientes
 
-1. instalar dependencias localmente;
-2. ejecutar build;
-3. iniciar Redis;
-4. probar conversación con Jorge;
-5. crear segundo agente;
-6. implementar delegación.
+1. revisar resultado de CI;
+2. iniciar Redis;
+3. probar conversación con Jorge;
+4. crear segundo agente;
+5. implementar delegación.
 
 ## Siguiente paso
 
