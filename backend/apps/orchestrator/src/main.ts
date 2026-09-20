@@ -18,8 +18,9 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  // El puerto viene del entorno; así el código no depende de una máquina concreta.
-  const port = Number(process.env.PORT ?? 4000);
+  // 5020 es el puerto estándar de desarrollo del backend.
+  // PORT puede sobrescribirlo cuando otro entorno necesite un valor diferente.
+  const port = Number(process.env.PORT ?? 5020);
 
   // Desde este punto NestJS queda vivo esperando nuevas peticiones.
   await app.listen(port);
