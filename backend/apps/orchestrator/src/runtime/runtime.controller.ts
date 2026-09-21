@@ -1,8 +1,18 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { Request } from 'express';
 
 import { AuthGuard } from '../auth/auth.guard';
+import { AuthenticatedUser } from '../auth/auth.types';
 import { ExecutionLogStore } from './execution-log.store';
 import { RuntimeMetricsService } from './runtime-metrics.service';
+
+type AuthRequest = Request & { user?: AuthenticatedUser };
 
 @Controller('runtime')
 @UseGuards(AuthGuard)
@@ -13,10 +23,15 @@ export class RuntimeController {
   ) {}
 
   @Get('executions')
-  async recent(@Query('limit') limit?: string) {
+  async recent(
+    @Req() request: AuthRequest,
+    @Query('limit') limit?: string,
+  ) {
     const parsed = Number(limit ?? 100);
+    const tenantId = request.user?.tenantId ?? 'default';
     const items = await this.executions.recent(
       Number.isFinite(parsed) ? parsed : 100,
+      tenantId,
     );
 
     return {
@@ -28,7 +43,9 @@ export class RuntimeController {
   }
 
   @Get('metrics')
-  metricsSnapshot() {
-    return this.metrics.snapshot();
+  metricsSnapshot(@Req() request: AuthRequest) {
+    return this.metrics.snapshot(
+      request.user?.tenantId ?? 'default',
+    );
   }
 }
