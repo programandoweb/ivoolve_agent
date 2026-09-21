@@ -2,9 +2,12 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 
+import { AdminController } from './admin.controller';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
+import { RolesGuard } from './roles.guard';
+import { UsersService } from './users.service';
 
 @Module({
   imports: [
@@ -23,16 +26,14 @@ import { AuthService } from './auth.service';
         return {
           secret,
           signOptions: {
-            // Nest acepta formatos como "8h". El cast evita perder esa
-            // flexibilidad por la unión estricta de tipos de jsonwebtoken.
             expiresIn: (config.get<string>('JWT_EXPIRES_IN') ?? '8h') as any,
           },
         };
       },
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, AuthGuard],
-  exports: [AuthService, AuthGuard],
+  controllers: [AuthController, AdminController],
+  providers: [AuthService, AuthGuard, RolesGuard, UsersService],
+  exports: [AuthService, AuthGuard, RolesGuard, UsersService],
 })
 export class AuthModule {}
