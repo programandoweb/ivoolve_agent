@@ -1,85 +1,98 @@
 # Ivoolve Agent
 
-Monorepo para construir, estudiar y gestionar agentes de IA.
+Monorepo para construir, gestionar y ejecutar agentes de IA con canales externos.
 
-## Puertos
+## Stack
 
 - NestJS + Socket.IO: 5020
 - Next.js: 5021
 - Redis: 6379
-- LM Studio: 1234
+- BullMQ: trabajos asíncronos
+- LM Studio / API compatible OpenAI
+- WhatsApp: Baileys
 
-## Dashboard seguro
+## Capacidades actuales
 
-Acceso:
+- dashboard seguro;
+- chat en tiempo real;
+- Agent Builder conversacional;
+- agentes core y gestionados;
+- delegación Jorge → subagentes;
+- Tool Registry ejecutable;
+- providers multicanal con adapter WhatsApp/Baileys;
+- múltiples números WhatsApp independientes;
+- QR, reconexión y ACL por agente;
+- routing Provider → BullMQ → Agente → Provider;
+- sesión independiente por contacto;
+- idempotencia de mensajes;
+- observabilidad de ejecuciones y colas;
+- tests backend dentro de GitHub Actions.
 
-```text
-http://localhost:5021/login
-```
+## Dashboard
 
-Antes del primer login configura el backend.
+- `/dashboard` — resumen;
+- `/dashboard/agents` — agentes;
+- `/dashboard/agents/create` — Agent Builder;
+- `/dashboard/providers` — canales/providers;
+- `/dashboard/chat` — conversación;
+- `/dashboard/runtime` — jobs, infraestructura y ejecuciones;
+- `/dashboard/security` — seguridad.
 
-### 1. Instala dependencias
+## Inicio local
 
 ```powershell
 cd D:\ivoolve_agent\backend
 npm install
+docker compose up -d redis
 ```
 
-### 2. Genera el hash de tu contraseña
+Genera las credenciales administrativas:
 
 ```powershell
 npm run auth:hash -- "TuClaveSegura"
-```
-
-### 3. Genera un secreto JWT
-
-```powershell
 npm run auth:secret
 ```
 
-### 4. Coloca ambos valores en backend/.env
-
-```env
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD_HASH=<hash bcrypt generado>
-JWT_SECRET=<secreto generado>
-JWT_EXPIRES_IN=8h
-```
-
-No versiones el archivo `.env`.
-
-## Inicio
+Configura `backend/.env` y luego:
 
 ```bat
 D:\ivoolve_agent\iniciar.bat
 ```
 
-Luego abre:
+Abre:
 
 ```text
 http://localhost:5021
 ```
 
-## Seguridad incluida
+## Persistencia
 
-- contraseña almacenada únicamente como hash bcrypt;
-- JWT firmado con expiración;
-- cookie HttpOnly;
-- SameSite=Lax;
-- cookie Secure automáticamente en producción;
-- REST de gestión protegido;
-- Socket.IO autenticado durante el handshake;
-- secretos exclusivamente por variables de entorno.
+Redis se usa para coordinación y estado temporal. Los datos de runtime del MVP se almacenan fuera de Git:
 
-## Dashboard
+- `backend/data/managed-agents/`
+- `backend/data/providers/`
+- `backend/data/runtime/`
 
-Rutas iniciales:
+En producción deben montarse sobre almacenamiento persistente.
 
-- `/dashboard` — resumen;
-- `/dashboard/agents` — agentes registrados;
-- `/dashboard/chat` — conversación Socket.IO;
-- `/dashboard/runtime` — estado del runtime;
-- `/dashboard/security` — controles de seguridad activos.
+## Arquitectura multicanal
 
-Esta primera fase usa un único administrador bootstrap. La evolución a múltiples usuarios y roles se hará sobre almacenamiento durable, no sobre Redis.
+```text
+WhatsApp / futuro Slack
+        ↓
+     Provider
+        ↓
+      BullMQ
+        ↓
+ Provider Router
+        ↓
+      Agente
+    ↙       ↘
+  LLM      Tools
+        ↓
+     Provider
+        ↓
+      Usuario
+```
+
+La arquitectura detallada está en `backend/docs/architecture.md`.
