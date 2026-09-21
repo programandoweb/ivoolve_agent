@@ -15,7 +15,6 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys';
 import QRCode from 'qrcode';
 
-import { AgentRegistryService } from '../agents/agent-registry.service';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
 import {
@@ -41,10 +40,7 @@ export class ProvidersService implements OnModuleInit {
   private readonly reconnectTimers = new Map<string, NodeJS.Timeout>();
   private readonly messageHandlers = new Set<ProviderMessageHandler>();
 
-  constructor(
-    private readonly store: ProviderStoreService,
-    private readonly agents: AgentRegistryService,
-  ) {}
+  constructor(private readonly store: ProviderStoreService) {}
 
   async onModuleInit(): Promise<void> {
     const providers = await this.store.list();
@@ -79,8 +75,6 @@ export class ProvidersService implements OnModuleInit {
   }
 
   async create(dto: CreateProviderDto): Promise<ProviderRecord> {
-    await this.validateAgents(dto.agentIds ?? []);
-
     const now = new Date().toISOString();
     const provider: ProviderRecord = {
       id: randomUUID(),
@@ -98,8 +92,6 @@ export class ProvidersService implements OnModuleInit {
 
   async update(id: string, dto: UpdateProviderDto): Promise<ProviderRecord> {
     const current = await this.requireProvider(id);
-    const agentIds = dto.agentIds ?? current.agentIds;
-    await this.validateAgents(agentIds);
 
     const updated: ProviderRecord = {
       ...current,
@@ -233,8 +225,6 @@ export class ProvidersService implements OnModuleInit {
           lastMessageAt: normalized.receivedAt,
         });
 
-        // El provider no decide qué agente responde. Solo normaliza el canal y
-        // entrega el evento al runtime desacoplado.
         for (const handler of this.messageHandlers) {
           void handler(normalized).catch((error) => {
             this.logger.error(
@@ -391,16 +381,6 @@ export class ProvidersService implements OnModuleInit {
       ...patch,
       updatedAt: new Date().toISOString(),
     });
-  }
-
-  private async validateAgents(agentIds: string[]): Promise<void> {
-    const missing = this.unique(agentIds).filter((id) => !this.agents.get(id));
-
-    if (missing.length > 0) {
-      throw new ConflictException(
-        `Agentes no registrados: ${missing.join(', ')}.`,
-      );
-    }
   }
 
   private unique(values: string[]): string[] {
