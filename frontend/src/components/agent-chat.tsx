@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
 import {
   Bot,
   BrainCircuit,
@@ -153,6 +153,22 @@ export function AgentChat() {
     }
   }
 
+  function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    // Enter envía el mensaje, igual que en un chat tradicional.
+    // Shift+Enter conserva el comportamiento natural del textarea y crea una nueva línea.
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing
+    ) {
+      event.preventDefault();
+
+      // requestSubmit dispara el onSubmit del formulario.
+      // Así reutilizamos exactamente la misma lógica que el botón Enviar.
+      event.currentTarget.form?.requestSubmit();
+    }
+  }
+
   return (
     <div className="overflow-hidden rounded-[32px] border border-zinc-200/80 bg-white shadow-soft">
       <div className="border-b border-zinc-100 px-6 py-5 sm:px-8">
@@ -225,6 +241,7 @@ export function AgentChat() {
           <textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}
+            onKeyDown={handleComposerKeyDown}
             placeholder="Escribe una tarea para Jorge..."
             rows={2}
             className="max-h-36 min-h-12 flex-1 resize-none bg-transparent py-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
@@ -244,7 +261,7 @@ export function AgentChat() {
         </div>
         <p className="mt-3 flex items-center gap-2 text-xs text-zinc-500">
           <Sparkles className="h-3.5 w-3.5 text-violet-500" />
-          El historial operativo de esta sesión se conserva en Redis.
+          Enter para enviar · Shift+Enter para nueva línea · Historial en Redis.
         </p>
       </form>
     </div>
