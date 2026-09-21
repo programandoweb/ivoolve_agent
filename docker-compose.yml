@@ -94,6 +94,7 @@ services:
       IVOOLVEOPS_ALLOWED_ORIGIN: ${IVOOLVEOPS_ALLOWED_ORIGIN:-}
       SSO_TICKET_TTL_SECONDS: ${SSO_TICKET_TTL_SECONDS:-60}
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5021}
+      FRONTEND_ORIGIN: ${PUBLIC_APP_URL:-http://localhost:5021}
     volumes:
       - ivoolve_agent_data:/app/data
     depends_on:
@@ -126,6 +127,7 @@ services:
       args:
         NEXT_PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5021}
         NEXT_PUBLIC_SOCKET_URL: ${BACKEND_PUBLIC_URL:-http://localhost:5020}
+      SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN:-}
     container_name: ivoolve-agent-frontend
     restart: unless-stopped
     environment:
