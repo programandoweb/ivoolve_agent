@@ -33,8 +33,6 @@ export class RedisService implements OnModuleDestroy {
     await this.setJson(this.sessionKey(session.sessionId), session, ttl);
   }
 
-  // Helpers genéricos para estados temporales de dominio, como el Agent Builder.
-  // Mantienen Redis desacoplado de la estructura concreta del borrador.
   async getJson<T>(key: string): Promise<T | null> {
     const raw = await this.redis.get(key);
     return raw ? (JSON.parse(raw) as T) : null;
@@ -42,6 +40,21 @@ export class RedisService implements OnModuleDestroy {
 
   async setJson(key: string, value: unknown, ttlSeconds: number): Promise<void> {
     await this.redis.setex(key, ttlSeconds, JSON.stringify(value));
+  }
+
+  /**
+   * Reclama una clave una única vez durante el TTL indicado.
+   * Se usa para idempotencia/locks ligeros sin separar GET y SET.
+   */
+  async claim(key: string, ttlSeconds: number): Promise<boolean> {
+    const result = await this.redis.set(
+      key,
+      '1',
+      'EX',
+      ttlSeconds,
+      'NX',
+    );
+    return result === 'OK';
   }
 
   async delete(key: string): Promise<void> {
