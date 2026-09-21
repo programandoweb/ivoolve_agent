@@ -16,3 +16,6 @@ backend/data/managed-agents/
 # Providers contiene credenciales de canales y claves Signal de WhatsApp.
 # Nunca debe versionarse.
 backend/data/providers/
+
+# Historial operativo generado por el runtime.
+backend/data/runtime/
