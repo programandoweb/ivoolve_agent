@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 
 import { LlmService } from '../llm/llm.service';
 import { RedisService } from '../state/redis.service';
@@ -26,6 +26,14 @@ export class AgentBuilderService {
     // La publicación es deliberadamente explícita. Jorge nunca crea un agente
     // solo porque el borrador esté completo: el usuario debe confirmarlo.
     if (previous.status === 'ready' && this.isPublishCommand(userMessage)) {
+      // Protegemos tanto agentes gestionados como agentes core (especialmente Jorge).
+      // Un agente creado desde UI nunca puede sobrescribir un id ya registrado.
+      if (this.registry.get(previous.draft.slug)) {
+        throw new ConflictException(
+          `Ya existe un agente registrado con id "${previous.draft.slug}". Cambia el nombre antes de publicar.`,
+        );
+      }
+
       const definition = await this.store.create(previous.draft);
       await this.registry.reload();
 
