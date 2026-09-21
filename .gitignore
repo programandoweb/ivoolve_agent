@@ -9,3 +9,6 @@ coverage/
 .DS_Store
 Thumbs.db
 *.log
+
+# Agentes creados desde el dashboard son datos de runtime, no código fuente.
+backend/data/managed-agents/
