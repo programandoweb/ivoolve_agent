@@ -66,6 +66,10 @@ export function AgentChat() {
   // useRef guarda la instancia real del socket sin provocar renders.
   const socketRef = useRef<Socket | null>(null);
 
+  // Referencia al contenedor desplazable del historial del chat.
+  // Nos permite llevar el scroll al último mensaje cada vez que cambia el contenido.
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+
   const [health, setHealth] = useState<Health | null>(null);
   const [agents, setAgents] = useState<string[]>([]);
   const [fallback, setFallback] = useState("jorge");
@@ -168,6 +172,23 @@ export function AgentChat() {
     return agents.length > 0 ? agents.join(", ") : fallback;
   }, [agents, fallback]);
 
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    // Esperamos al siguiente frame para asegurarnos de que React ya pintó
+    // el mensaje nuevo o el indicador de "procesando".
+    requestAnimationFrame(() => {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "smooth"
+      });
+    });
+  }, [messages, sending]);
+
   function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -243,7 +264,10 @@ export function AgentChat() {
         />
       </div>
 
-      <div className="h-[430px] space-y-4 overflow-y-auto px-4 py-6 sm:px-6">
+      <div
+        ref={messagesContainerRef}
+        className="h-[430px] space-y-4 overflow-y-auto px-4 py-6 sm:px-6"
+      >
         {messages.map((message, index) => (
           <div
             key={`${message.role}-${index}`}
