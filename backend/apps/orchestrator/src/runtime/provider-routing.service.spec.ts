@@ -22,6 +22,7 @@ describe('ProviderRoutingService', () => {
   };
   const redis = {
     claim: jest.fn(),
+    delete: jest.fn(),
   };
   const executions = {
     append: jest.fn(),
@@ -41,6 +42,7 @@ describe('ProviderRoutingService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    redis.delete.mockResolvedValue(undefined);
 
     service = new ProviderRoutingService(
       providers as unknown as ProvidersService,
@@ -93,6 +95,7 @@ describe('ProviderRoutingService', () => {
         agentId: 'sales',
       }),
     );
+    expect(redis.delete).not.toHaveBeenCalled();
     expect(llm.complete).not.toHaveBeenCalled();
   });
 
@@ -104,5 +107,21 @@ describe('ProviderRoutingService', () => {
     expect(providers.get).not.toHaveBeenCalled();
     expect(runtime.chatAsAgent).not.toHaveBeenCalled();
     expect(providers.sendText).not.toHaveBeenCalled();
+  });
+
+  it('libera el claim cuando falla para permitir el retry de BullMQ', async () => {
+    redis.claim.mockResolvedValue(true);
+    providers.get.mockRejectedValue(new Error('provider temporalmente caído'));
+
+    await expect(service.handle(message)).rejects.toThrow(
+      'provider temporalmente caído',
+    );
+
+    expect(redis.delete).toHaveBeenCalledWith(
+      'ivoolve:provider-message:provider-1:msg-1',
+    );
+    expect(executions.append).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'failed' }),
+    );
   });
 });
