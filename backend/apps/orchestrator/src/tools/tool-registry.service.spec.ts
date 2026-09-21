@@ -1,6 +1,8 @@
 import { ApprovalsService } from '../approvals/approvals.service';
 import { ProvidersService } from '../providers/providers.service';
+import { GoogleProspectingService } from './google-prospecting.service';
 import { ToolRegistryService } from './tool-registry.service';
+import { VideoGeneratorService } from './video-generator.service';
 
 describe('ToolRegistryService', () => {
   const providers = {
@@ -12,6 +14,16 @@ describe('ToolRegistryService', () => {
     request: jest.fn(),
   };
 
+  const googleProspecting = {
+    searchPlaces: jest.fn(),
+    searchWeb: jest.fn(),
+  };
+  const videoGenerator = {
+    capabilities: jest.fn(),
+    generate: jest.fn(),
+    status: jest.fn(),
+  };
+
   let service: ToolRegistryService;
 
   beforeEach(() => {
@@ -21,6 +33,8 @@ describe('ToolRegistryService', () => {
     service = new ToolRegistryService(
       providers as unknown as ProvidersService,
       approvals as unknown as ApprovalsService,
+      googleProspecting as unknown as GoogleProspectingService,
+      videoGenerator as unknown as VideoGeneratorService,
     );
   });
 
@@ -164,5 +178,78 @@ describe('ToolRegistryService', () => {
 
     expect(providers.sendText).not.toHaveBeenCalled();
     expect(approvals.request).not.toHaveBeenCalled();
+  });
+  it('crea un job de video con defaults seguros', async () => {
+    videoGenerator.generate.mockResolvedValue({
+      id: 'job-video-1',
+      status: 'queued',
+    });
+
+    const result = await service.execute(
+      {
+        tool: 'video.generate',
+        arguments: {
+          prompt: 'Cinematic B2B commercial for Ivoolve ERP',
+        },
+      },
+      {
+        agentId: 'marketing',
+        source: 'interactive',
+        actorRole: 'operator',
+        tenantId: 'tenant-a',
+      },
+    );
+
+    expect(videoGenerator.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: 'Cinematic B2B commercial for Ivoolve ERP',
+        durationSeconds: 5,
+        width: 832,
+        height: 480,
+        fps: 16,
+      }),
+    );
+    expect(result).toEqual({ id: 'job-video-1', status: 'queued' });
+  });
+
+  it('consulta el estado de un job de video', async () => {
+    videoGenerator.status.mockResolvedValue({
+      id: 'job-video-1',
+      status: 'completed',
+    });
+
+    await service.execute(
+      {
+        tool: 'video.status',
+        arguments: { jobId: 'job-video-1' },
+      },
+      {
+        agentId: 'marketing',
+        source: 'interactive',
+        actorRole: 'operator',
+        tenantId: 'tenant-a',
+      },
+    );
+
+    expect(videoGenerator.status).toHaveBeenCalledWith('job-video-1');
+  });
+
+  it('bloquea generación de video para viewer', async () => {
+    await expect(
+      service.execute(
+        {
+          tool: 'video.generate',
+          arguments: { prompt: 'Video corporativo de cinco segundos' },
+        },
+        {
+          agentId: 'marketing',
+          source: 'interactive',
+          actorRole: 'viewer',
+          tenantId: 'tenant-a',
+        },
+      ),
+    ).rejects.toThrow('viewer');
+
+    expect(videoGenerator.generate).not.toHaveBeenCalled();
   });
 });
