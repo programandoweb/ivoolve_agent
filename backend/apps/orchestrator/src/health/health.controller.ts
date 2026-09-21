@@ -1,19 +1,33 @@
 import { Controller, Get } from '@nestjs/common';
+
+import { DatabaseService } from '../database/database.service';
 import { RedisService } from '../state/redis.service';
 
 @Controller('health')
 export class HealthController {
-  constructor(private readonly redis: RedisService) {}
+  constructor(
+    private readonly redis: RedisService,
+    private readonly database: DatabaseService,
+  ) {}
 
   @Get()
   async health() {
-    // PING permite comprobar que no solo NestJS, sino también Redis, está operativo.
     const redis = await this.redis.ping();
 
+    let database: 'disabled' | 'ok' | 'error' = 'disabled';
+    if (this.database.enabled) {
+      try {
+        database = (await this.database.ping()) ? 'ok' : 'error';
+      } catch {
+        database = 'error';
+      }
+    }
+
     return {
-      status: 'ok',
+      status: database === 'error' ? 'degraded' : 'ok',
       service: 'ivoolve-agent-orchestrator',
       redis,
+      database,
       timestamp: new Date().toISOString(),
     };
   }
