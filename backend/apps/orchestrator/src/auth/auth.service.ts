@@ -126,6 +126,47 @@ export class AuthService {
     }
   }
 
+  async issueIntegrationSession() {
+    if (this.database.enabled) {
+      const rows = await this.database.query<AuthUserRow[]>(
+        `SELECT id, tenant_id, username, password_hash, role, status
+           FROM users
+          WHERE status = 'active' AND role = 'admin'
+          ORDER BY created_at ASC
+          LIMIT 1`,
+      );
+      const user = rows[0];
+      if (!user) {
+        throw new ServiceUnavailableException(
+          'No existe un administrador activo para completar el SSO.',
+        );
+      }
+
+      return this.issueToken({
+        id: user.id,
+        username: user.username,
+        role: 'admin',
+        tenantId:
+          user.tenant_id ??
+          this.config.get<string>('DEFAULT_TENANT_ID', 'default'),
+      });
+    }
+
+    const username = this.config.get<string>('ADMIN_USERNAME');
+    if (!username) {
+      throw new ServiceUnavailableException(
+        'ADMIN_USERNAME no está configurado para completar el SSO.',
+      );
+    }
+
+    return this.issueToken({
+      id: 'bootstrap-admin',
+      username,
+      role: 'admin',
+      tenantId: this.config.get<string>('DEFAULT_TENANT_ID', 'default'),
+    });
+  }
+
   private async issueToken(user: AuthenticatedUser) {
     const payload: JwtPayload = {
       sub: user.id,
