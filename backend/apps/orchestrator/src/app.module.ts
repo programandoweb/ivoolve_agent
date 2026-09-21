@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 
 import { AgentsModule } from './agents/agents.module';
 import { AuthModule } from './auth/auth.module';
+import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { LlmModule } from './llm/llm.module';
 import { ProvidersModule } from './providers/providers.module';
@@ -13,6 +14,7 @@ import { RedisModule } from './state/redis.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    DatabaseModule,
     AuthModule,
     RedisModule,
     LlmModule,
