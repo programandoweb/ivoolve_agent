@@ -4,10 +4,15 @@ import { ApprovalsModule } from '../approvals/approvals.module';
 import { ProvidersModule } from '../providers/providers.module';
 import { GoogleProspectingService } from './google-prospecting.service';
 import { ToolRegistryService } from './tool-registry.service';
+import { VideoGeneratorService } from './video-generator.service';
 
 @Module({
   imports: [ProvidersModule, ApprovalsModule],
-  providers: [GoogleProspectingService, ToolRegistryService],
+  providers: [
+    GoogleProspectingService,
+    VideoGeneratorService,
+    ToolRegistryService,
+  ],
   exports: [ToolRegistryService],
 })
 export class ToolsModule {}
