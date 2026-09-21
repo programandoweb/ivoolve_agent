@@ -18,6 +18,7 @@ import {
 } from 'class-validator';
 import { Request } from 'express';
 
+import { AuditService } from '../audit/audit.service';
 import { AuthGuard } from './auth.guard';
 import { AuthenticatedUser, UserRole } from './auth.types';
 import { Roles } from './roles.decorator';
@@ -73,7 +74,10 @@ type AuthRequest = Request & { user?: AuthenticatedUser };
 @UseGuards(AuthGuard, RolesGuard)
 @Roles('admin')
 export class AdminController {
-  constructor(private readonly users: UsersService) {}
+  constructor(
+    private readonly users: UsersService,
+    private readonly audit: AuditService,
+  ) {}
 
   @Get('users')
   listUsers(@Req() request: AuthRequest) {
@@ -83,26 +87,60 @@ export class AdminController {
   }
 
   @Post('users')
-  createUser(@Req() request: AuthRequest, @Body() dto: CreateUserDto) {
-    const user = request.user!;
-
-    return this.users.createUser({
-      tenantId: user.tenantId,
+  async createUser(
+    @Req() request: AuthRequest,
+    @Body() dto: CreateUserDto,
+  ) {
+    const actor = request.user!;
+    const created = await this.users.createUser({
+      tenantId: actor.tenantId,
       username: dto.username.trim(),
       password: dto.password,
       role: dto.role,
     });
+
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      actor: actor.username,
+      eventName: 'user.created',
+      entityType: 'user',
+      entityId: created.id,
+      metadata: {
+        username: created.username,
+        role: created.role,
+      },
+    });
+
+    return created;
   }
 
   @Patch('users/:id')
-  updateUser(
+  async updateUser(
     @Req() request: AuthRequest,
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
   ) {
-    const user = request.user!;
+    const actor = request.user!;
+    const updated = await this.users.updateUser(
+      id,
+      actor.tenantId,
+      dto,
+    );
 
-    return this.users.updateUser(id, user.tenantId, dto);
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      actor: actor.username,
+      eventName: 'user.updated',
+      entityType: 'user',
+      entityId: id,
+      metadata: {
+        role: dto.role,
+        status: dto.status,
+        passwordChanged: Boolean(dto.password),
+      },
+    });
+
+    return updated;
   }
 
   @Get('tenants')
@@ -112,12 +150,27 @@ export class AdminController {
   }
 
   @Post('tenants')
-  createTenant(
+  async createTenant(
     @Req() request: AuthRequest,
     @Body() dto: CreateTenantDto,
   ) {
-    this.requirePlatformAdmin(request.user!);
-    return this.users.createTenant(dto.name, dto.slug);
+    const actor = request.user!;
+    this.requirePlatformAdmin(actor);
+    const created = await this.users.createTenant(dto.name, dto.slug);
+
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      actor: actor.username,
+      eventName: 'tenant.created',
+      entityType: 'tenant',
+      entityId: created.id,
+      metadata: {
+        slug: created.slug,
+        name: created.name,
+      },
+    });
+
+    return created;
   }
 
   private requirePlatformAdmin(user: AuthenticatedUser): void {
