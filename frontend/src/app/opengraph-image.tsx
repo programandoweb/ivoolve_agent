@@ -29,25 +29,25 @@ export default function OpenGraphImage() {
         <div
           style={{
             position: "absolute",
+            display: "flex",
             width: 520,
             height: 520,
             borderRadius: 999,
             top: -220,
             left: -120,
-            background: "rgba(124,58,237,.28)",
-            filter: "blur(10px)"
+            background: "rgba(124,58,237,.28)"
           }}
         />
         <div
           style={{
             position: "absolute",
+            display: "flex",
             width: 440,
             height: 440,
             borderRadius: 999,
             right: -100,
             bottom: -230,
-            background: "rgba(139,92,246,.24)",
-            filter: "blur(10px)"
+            background: "rgba(139,92,246,.24)"
           }}
         />
 
@@ -90,6 +90,7 @@ export default function OpenGraphImage() {
               >
                 <div
                   style={{
+                    display: "flex",
                     width: 34,
                     height: 34,
                     borderRadius: 999,
@@ -106,6 +107,7 @@ export default function OpenGraphImage() {
               >
                 <div
                   style={{
+                    display: "flex",
                     fontSize: 30,
                     fontWeight: 800,
                     letterSpacing: "-1px"
@@ -115,6 +117,7 @@ export default function OpenGraphImage() {
                 </div>
                 <div
                   style={{
+                    display: "flex",
                     marginTop: 3,
                     fontSize: 17,
                     color: "#c4b5fd",
@@ -135,18 +138,20 @@ export default function OpenGraphImage() {
             >
               <div
                 style={{
+                  display: "flex",
+                  flexDirection: "column",
                   fontSize: 65,
                   lineHeight: 1.02,
                   fontWeight: 900,
                   letterSpacing: "-3.5px"
                 }}
               >
-                Crea. Orquesta.
-                <br />
-                Evoluciona.
+                <div style={{ display: "flex" }}>Crea. Orquesta.</div>
+                <div style={{ display: "flex" }}>Evoluciona.</div>
               </div>
               <div
                 style={{
+                  display: "flex",
                   marginTop: 26,
                   width: 620,
                   fontSize: 24,
@@ -154,8 +159,7 @@ export default function OpenGraphImage() {
                   color: "#d4d4d8"
                 }}
               >
-                Construye agentes de IA, coordina sus capacidades y observa el
-                runtime desde un solo lugar.
+                Construye agentes de IA, coordina sus capacidades y observa el runtime desde un solo lugar.
               </div>
             </div>
 
@@ -169,6 +173,7 @@ export default function OpenGraphImage() {
                 <div
                   key={item}
                   style={{
+                    display: "flex",
                     padding: "10px 16px",
                     borderRadius: 999,
                     background: "rgba(255,255,255,.08)",
@@ -197,6 +202,7 @@ export default function OpenGraphImage() {
             <div
               style={{
                 position: "absolute",
+                display: "flex",
                 width: 330,
                 height: 330,
                 borderRadius: 999,
@@ -206,6 +212,7 @@ export default function OpenGraphImage() {
             <div
               style={{
                 position: "absolute",
+                display: "flex",
                 width: 230,
                 height: 230,
                 borderRadius: 999,
@@ -223,6 +230,7 @@ export default function OpenGraphImage() {
                 key={index}
                 style={{
                   position: "absolute",
+                  display: "flex",
                   left: node.x,
                   top: node.y,
                   width: 54,
@@ -262,6 +270,7 @@ export default function OpenGraphImage() {
               >
                 <div
                   style={{
+                    display: "flex",
                     width: 20,
                     height: 20,
                     borderRadius: 999,
@@ -271,6 +280,7 @@ export default function OpenGraphImage() {
               </div>
               <div
                 style={{
+                  display: "flex",
                   marginTop: 12,
                   fontSize: 17,
                   fontWeight: 800
