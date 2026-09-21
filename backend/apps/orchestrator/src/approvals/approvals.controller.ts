@@ -8,12 +8,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import {
-  IsIn,
-  IsOptional,
-  IsString,
-  MaxLength,
-} from 'class-validator';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { Request } from 'express';
 
 import { AuthGuard } from '../auth/auth.guard';
