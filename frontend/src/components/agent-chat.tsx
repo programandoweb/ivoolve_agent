@@ -52,8 +52,6 @@ type AgentChatProps = {
 };
 
 function getOrCreateSessionId(mode: "chat" | "builder"): string {
-  // El constructor usa una sesión distinta al chat normal para no contaminar
-  // el historial operativo de Jorge con la entrevista de definición.
   const storageKey =
     mode === "builder"
       ? "ivoolve-agent-builder-session"
@@ -207,16 +205,22 @@ export function AgentChat({ mode = "chat" }: AgentChatProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-[32px] border border-zinc-200/80 bg-white shadow-soft">
-      <div className="border-b border-zinc-100 px-6 py-5 sm:px-8">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-lg shadow-violet-200">
-              <Bot className="h-6 w-6" />
+    <div
+      className={
+        isBuilder
+          ? "flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[24px] border border-zinc-200/80 bg-white shadow-soft sm:rounded-[28px]"
+          : "overflow-hidden rounded-[32px] border border-zinc-200/80 bg-white shadow-soft"
+      }
+    >
+      <div className="shrink-0 border-b border-zinc-100 px-4 py-3 sm:px-5 sm:py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-lg shadow-violet-200">
+              <Bot className="h-5 w-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="font-semibold text-zinc-950">Jorge</p>
-              <p className="text-sm text-zinc-500">
+              <p className="truncate text-xs text-zinc-500 sm:text-sm">
                 {isBuilder
                   ? "Agent Builder · creación guiada"
                   : "Orquestador · hilo Socket.IO"}
@@ -228,24 +232,24 @@ export function AgentChat({ mode = "chat" }: AgentChatProps) {
         </div>
       </div>
 
-      <div className="grid gap-3 border-b border-zinc-100 bg-zinc-50/70 p-4 sm:grid-cols-4 sm:p-6">
+      <div className="grid shrink-0 grid-cols-2 gap-2 border-b border-zinc-100 bg-zinc-50/70 p-2 sm:grid-cols-4 sm:gap-3 sm:p-3">
         <InfoCard
-          icon={<Unplug className="h-4 w-4" />}
+          icon={<Unplug className="h-3.5 w-3.5" />}
           label="Socket"
           value={socketConnected ? "Conectado" : "Desconectado"}
         />
         <InfoCard
-          icon={<Server className="h-4 w-4" />}
+          icon={<Server className="h-3.5 w-3.5" />}
           label="Redis"
           value={health?.redis === "PONG" ? "Conectado" : "Pendiente"}
         />
         <InfoCard
-          icon={<BrainCircuit className="h-4 w-4" />}
+          icon={<BrainCircuit className="h-3.5 w-3.5" />}
           label="Agentes"
           value={agentLabel}
         />
         <InfoCard
-          icon={<CheckCircle2 className="h-4 w-4" />}
+          icon={<CheckCircle2 className="h-3.5 w-3.5" />}
           label="Sesión"
           value={sessionId ? sessionId.slice(0, 8) : "Creando..."}
         />
@@ -253,7 +257,11 @@ export function AgentChat({ mode = "chat" }: AgentChatProps) {
 
       <div
         ref={messagesContainerRef}
-        className="h-[500px] space-y-4 overflow-y-auto px-4 py-6 sm:px-6"
+        className={
+          isBuilder
+            ? "min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5"
+            : "h-[500px] space-y-4 overflow-y-auto px-4 py-6 sm:px-6"
+        }
       >
         {messages.map((message, index) => (
           <div
@@ -265,8 +273,8 @@ export function AgentChat({ mode = "chat" }: AgentChatProps) {
             <div
               className={
                 message.role === "user"
-                  ? "max-w-[85%] whitespace-pre-wrap rounded-3xl rounded-br-lg bg-zinc-950 px-4 py-3 text-sm leading-6 text-white"
-                  : "max-w-[88%] whitespace-pre-wrap rounded-3xl rounded-bl-lg bg-violet-50 px-4 py-3 text-sm leading-6 text-zinc-800"
+                  ? "max-w-[88%] whitespace-pre-wrap rounded-3xl rounded-br-lg bg-zinc-950 px-4 py-3 text-sm leading-6 text-white sm:max-w-[80%]"
+                  : "max-w-[92%] whitespace-pre-wrap rounded-3xl rounded-bl-lg bg-violet-50 px-4 py-3 text-sm leading-6 text-zinc-800 sm:max-w-[82%]"
               }
             >
               {message.content}
@@ -288,9 +296,9 @@ export function AgentChat({ mode = "chat" }: AgentChatProps) {
 
       <form
         onSubmit={sendMessage}
-        className="border-t border-zinc-100 bg-white p-4 sm:p-6"
+        className="shrink-0 border-t border-zinc-100 bg-white p-2.5 sm:p-3"
       >
-        <div className="flex items-end gap-3 rounded-3xl border border-zinc-200 bg-zinc-50 p-2 pl-4 focus-within:border-violet-400 focus-within:ring-4 focus-within:ring-violet-100">
+        <div className="flex items-end gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-1.5 pl-3 focus-within:border-violet-400 focus-within:ring-4 focus-within:ring-violet-100 sm:rounded-3xl sm:p-2 sm:pl-4">
           <textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}
@@ -302,13 +310,13 @@ export function AgentChat({ mode = "chat" }: AgentChatProps) {
                   : "Escribe una tarea para Jorge..."
                 : "Esperando conexión Socket.IO..."
             }
-            rows={2}
-            className="max-h-36 min-h-12 flex-1 resize-none bg-transparent py-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
+            rows={1}
+            className="max-h-28 min-h-10 flex-1 resize-none bg-transparent py-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
           />
           <button
             type="submit"
             disabled={!socketConnected || sending || !input.trim()}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-zinc-300"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-zinc-300 sm:rounded-2xl"
             aria-label="Enviar mensaje"
           >
             {sending ? (
@@ -318,7 +326,8 @@ export function AgentChat({ mode = "chat" }: AgentChatProps) {
             )}
           </button>
         </div>
-        <p className="mt-3 flex items-center gap-2 text-xs text-zinc-500">
+
+        <p className="mt-1.5 hidden items-center gap-2 px-1 text-[11px] text-zinc-500 sm:flex">
           <Sparkles className="h-3.5 w-3.5 text-violet-500" />
           Enter envía · Shift+Enter nueva línea · conversación por Socket.IO.
         </p>
@@ -337,12 +346,12 @@ function InfoCard({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
-      <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-zinc-400">
+    <div className="min-w-0 rounded-xl border border-zinc-200 bg-white px-3 py-2 sm:rounded-2xl">
+      <div className="mb-0.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400 sm:text-xs">
         {icon}
         {label}
       </div>
-      <p className="truncate text-sm font-semibold capitalize text-zinc-900">
+      <p className="truncate text-xs font-semibold capitalize text-zinc-900 sm:text-sm">
         {value}
       </p>
     </div>
