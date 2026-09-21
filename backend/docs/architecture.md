@@ -48,7 +48,9 @@ Fuente durable compartida cuando `DATABASE_URL` está configurada:
 - metadatos de providers;
 - ejecuciones del runtime;
 - approvals;
-- audit events.
+- audit events;
+- contextos/referencias externas de IvoolveOps;
+- tickets SSO hasheados y single-use.
 
 Las migraciones bootstrap son idempotentes mediante `CREATE TABLE IF NOT EXISTS`.
 
@@ -218,3 +220,11 @@ No deben versionarse:
 - agentes gestionados creados en ejecución.
 
 El siguiente bloque de trabajo es QA integral, definido en `backend/docs/qa/full-qa-plan.md`.
+
+## IvoolveOps
+
+IvoolveOps consume un contrato HTTP interno autenticado para crear o resolver agentes `customer_support`, consultar estado y solicitar tickets SSO.
+
+Las referencias `external_customer_id` y `external_project_id` permanecen en la base de Ivoolve Agent, pero nunca crean FKs ni acceso a la base de IvoolveOps. El managed agent conserva identidad/instrucciones y conocimiento inicial; las sesiones interactivas del frontend se separan por `agentId` para evitar contaminación entre proyectos.
+
+Detalle completo: `../docs/integrations/ivoolveops-ivoolve-agent.md`.
