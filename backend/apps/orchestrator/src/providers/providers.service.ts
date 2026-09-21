@@ -11,12 +11,17 @@ import { randomUUID } from 'node:crypto';
 import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
+  type WAMessage,
 } from '@whiskeysockets/baileys';
 import QRCode from 'qrcode';
 
 import { AgentRegistryService } from '../agents/agent-registry.service';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
+import {
+  NormalizedProviderMessage,
+  ProviderMessageHandler,
+} from './provider-message.types';
 import {
   ProviderConnectionView,
   ProviderRecord,
@@ -34,6 +39,7 @@ export class ProvidersService implements OnModuleInit {
   private readonly logger = new Logger(ProvidersService.name);
   private readonly runtime = new Map<string, RuntimeConnection>();
   private readonly reconnectTimers = new Map<string, NodeJS.Timeout>();
+  private readonly messageHandlers = new Set<ProviderMessageHandler>();
 
   constructor(
     private readonly store: ProviderStoreService,
@@ -56,6 +62,11 @@ export class ProvidersService implements OnModuleInit {
         });
       }
     }
+  }
+
+  onIncomingMessage(handler: ProviderMessageHandler): () => void {
+    this.messageHandlers.add(handler);
+    return () => this.messageHandlers.delete(handler);
   }
 
   list(): Promise<ProviderRecord[]> {
@@ -93,8 +104,12 @@ export class ProvidersService implements OnModuleInit {
     const updated: ProviderRecord = {
       ...current,
       ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-      ...(dto.agentIds !== undefined ? { agentIds: this.unique(dto.agentIds) } : {}),
-      ...(dto.autoConnect !== undefined ? { autoConnect: dto.autoConnect } : {}),
+      ...(dto.agentIds !== undefined
+        ? { agentIds: this.unique(dto.agentIds) }
+        : {}),
+      ...(dto.autoConnect !== undefined
+        ? { autoConnect: dto.autoConnect }
+        : {}),
       updatedAt: new Date().toISOString(),
     };
 
@@ -205,20 +220,61 @@ export class ProvidersService implements OnModuleInit {
     });
 
     socket.ev.on('messages.upsert', async ({ messages }) => {
-      const incoming = messages.some((message) => !message.key.fromMe);
-      if (!incoming) return;
+      for (const message of messages) {
+        if (message.key.fromMe) continue;
 
-      const current = await this.store.get(id);
-      if (!current) return;
+        const normalized = this.normalizeMessage(id, message);
+        if (!normalized) continue;
 
-      // En esta fase registramos actividad del canal. El siguiente paso del
-      // runtime podrá enrutar el mensaje a cualquiera de agentIds.
-      await this.patchRecord(current, {
-        lastMessageAt: new Date().toISOString(),
-      });
+        const current = await this.store.get(id);
+        if (!current) continue;
+
+        await this.patchRecord(current, {
+          lastMessageAt: normalized.receivedAt,
+        });
+
+        // El provider no decide qué agente responde. Solo normaliza el canal y
+        // entrega el evento al runtime desacoplado.
+        for (const handler of this.messageHandlers) {
+          void handler(normalized).catch((error) => {
+            this.logger.error(
+              `Error procesando mensaje ${normalized.messageId}: ${String(error)}`,
+            );
+          });
+        }
+      }
     });
 
     return this.withRuntime((await this.store.get(id)) ?? provider);
+  }
+
+  async sendText(
+    providerId: string,
+    agentId: string,
+    recipient: string,
+    text: string,
+  ): Promise<{ messageId?: string }> {
+    const provider = await this.requireProvider(providerId);
+
+    if (!provider.agentIds.includes(agentId)) {
+      throw new ConflictException(
+        `El agente "${agentId}" no está autorizado para usar "${provider.name}".`,
+      );
+    }
+
+    const connection = this.runtime.get(providerId);
+    if (!connection || provider.status !== 'connected') {
+      throw new ConflictException(
+        `El provider "${provider.name}" no está conectado.`,
+      );
+    }
+
+    const jid = this.normalizeRecipient(recipient);
+    const result = await connection.socket.sendMessage(jid, { text });
+
+    return {
+      messageId: result?.key.id ?? undefined,
+    };
   }
 
   async disconnect(
@@ -259,6 +315,44 @@ export class ProvidersService implements OnModuleInit {
   async connection(id: string): Promise<ProviderConnectionView> {
     const provider = await this.requireProvider(id);
     return this.withRuntime(provider);
+  }
+
+  private normalizeMessage(
+    providerId: string,
+    message: WAMessage,
+  ): NormalizedProviderMessage | null {
+    const sender = message.key.remoteJid;
+    const messageId = message.key.id;
+    const text =
+      message.message?.conversation ??
+      message.message?.extendedTextMessage?.text ??
+      message.message?.imageMessage?.caption ??
+      message.message?.videoMessage?.caption ??
+      message.message?.documentMessage?.caption ??
+      '';
+
+    if (!sender || !messageId || !text.trim()) return null;
+
+    return {
+      providerId,
+      providerType: 'whatsapp_baileys',
+      messageId,
+      sender,
+      conversationId: sender,
+      text: text.trim(),
+      receivedAt: new Date().toISOString(),
+    };
+  }
+
+  private normalizeRecipient(recipient: string): string {
+    if (recipient.includes('@')) return recipient;
+
+    const digits = recipient.replace(/\D/g, '');
+    if (!digits) {
+      throw new BadRequestException('Destinatario inválido.');
+    }
+
+    return `${digits}@s.whatsapp.net`;
   }
 
   private async withRuntime(
