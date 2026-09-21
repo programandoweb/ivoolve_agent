@@ -40,7 +40,6 @@ type ChatResponse = {
   sessionId: string;
   agent: string;
   answer: string;
-  messageCount: number;
 };
 
 type AgentError = {
@@ -48,27 +47,32 @@ type AgentError = {
   message?: string;
 };
 
-function getOrCreateSessionId(): string {
-  const storageKey = "ivoolve-agent-session";
-  const existing = window.localStorage.getItem(storageKey);
+type AgentChatProps = {
+  mode?: "chat" | "builder";
+};
 
-  if (existing) {
-    return existing;
-  }
+function getOrCreateSessionId(mode: "chat" | "builder"): string {
+  // El constructor usa una sesión distinta al chat normal para no contaminar
+  // el historial operativo de Jorge con la entrevista de definición.
+  const storageKey =
+    mode === "builder"
+      ? "ivoolve-agent-builder-session"
+      : "ivoolve-agent-session";
+
+  const existing = window.localStorage.getItem(storageKey);
+  if (existing) return existing;
 
   const created = crypto.randomUUID();
   window.localStorage.setItem(storageKey, created);
-
   return created;
 }
 
-export function AgentChat() {
-  // useRef guarda la instancia real del socket sin provocar renders.
+export function AgentChat({ mode = "chat" }: AgentChatProps) {
   const socketRef = useRef<Socket | null>(null);
-
-  // Referencia al contenedor desplazable del historial del chat.
-  // Nos permite llevar el scroll al último mensaje cada vez que cambia el contenido.
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const isBuilder = mode === "builder";
+  const eventPrefix = isBuilder ? "agent-builder" : "agent";
 
   const [health, setHealth] = useState<Health | null>(null);
   const [agents, setAgents] = useState<string[]>([]);
@@ -80,17 +84,16 @@ export function AgentChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
-      content:
-        "Hola. Soy Jorge. Este chat ahora mantiene un hilo Socket.IO abierto con NestJS."
+      content: isBuilder
+        ? "Hola. Soy Jorge. Vamos a crear un agente conversando. Cuéntame primero qué agente necesitas y qué problema debe resolver."
+        : "Hola. Soy Jorge. Este chat mantiene un hilo Socket.IO abierto con NestJS."
     }
   ]);
 
   useEffect(() => {
-    const currentSessionId = getOrCreateSessionId();
+    const currentSessionId = getOrCreateSessionId(mode);
     setSessionId(currentSessionId);
 
-    // El navegador abre UNA conexión persistente con NestJS.
-    // Ya no hacemos un POST HTTP por cada mensaje.
     const socket = io(
       `${process.env.NEXT_PUBLIC_SOCKET_URL ?? "http://localhost:5020"}/agents`,
       {
@@ -104,31 +107,23 @@ export function AgentChat() {
 
     socketRef.current = socket;
 
-    socket.on("connect", () => {
-      setSocketConnected(true);
-    });
-
+    socket.on("connect", () => setSocketConnected(true));
     socket.on("disconnect", () => {
       setSocketConnected(false);
       setSending(false);
     });
 
-    socket.on("agent:processing", () => {
-      setSending(true);
-    });
+    socket.on(`${eventPrefix}:processing`, () => setSending(true));
 
-    socket.on("agent:response", (data: ChatResponse) => {
+    socket.on(`${eventPrefix}:response`, (data: ChatResponse) => {
       setMessages((current) => [
         ...current,
-        {
-          role: "assistant",
-          content: data.answer
-        }
+        { role: "assistant", content: data.answer }
       ]);
       setSending(false);
     });
 
-    socket.on("agent:error", (error: AgentError) => {
+    socket.on(`${eventPrefix}:error`, (error: AgentError) => {
       setMessages((current) => [
         ...current,
         {
@@ -140,8 +135,6 @@ export function AgentChat() {
     });
 
     async function loadAuxiliaryState() {
-      // Health y catálogo siguen siendo lecturas HTTP auxiliares.
-      // La conversación ya no pasa por estas rutas.
       const [healthResponse, agentsResponse] = await Promise.allSettled([
         fetch("/api/backend/health", { cache: "no-store" }),
         fetch("/api/backend/agents", { cache: "no-store" })
@@ -161,27 +154,21 @@ export function AgentChat() {
     void loadAuxiliaryState();
 
     return () => {
-      // Muy importante: al desmontar el componente cerramos los listeners
-      // y la conexión para no crear sockets duplicados.
       socket.removeAllListeners();
       socket.disconnect();
       socketRef.current = null;
     };
-  }, []);
+  }, [eventPrefix, mode]);
 
-  const agentLabel = useMemo(() => {
-    return agents.length > 0 ? agents.join(", ") : fallback;
-  }, [agents, fallback]);
+  const agentLabel = useMemo(
+    () => (agents.length > 0 ? agents.join(", ") : fallback),
+    [agents, fallback]
+  );
 
   useEffect(() => {
     const container = messagesContainerRef.current;
+    if (!container) return;
 
-    if (!container) {
-      return;
-    }
-
-    // Esperamos al siguiente frame para asegurarnos de que React ya pintó
-    // el mensaje nuevo o el indicador de "procesando".
     requestAnimationFrame(() => {
       container.scrollTo({
         top: container.scrollHeight,
@@ -196,16 +183,13 @@ export function AgentChat() {
     const message = input.trim();
     const socket = socketRef.current;
 
-    if (!message || !sessionId || sending || !socket?.connected) {
-      return;
-    }
+    if (!message || !sessionId || sending || !socket?.connected) return;
 
     setInput("");
     setSending(true);
     setMessages((current) => [...current, { role: "user", content: message }]);
 
-    // Este emit reemplaza completamente al antiguo fetch POST /agents/chat.
-    socket.emit("agent:message", {
+    socket.emit(`${eventPrefix}:message`, {
       sessionId,
       message
     });
@@ -233,7 +217,9 @@ export function AgentChat() {
             <div>
               <p className="font-semibold text-zinc-950">Jorge</p>
               <p className="text-sm text-zinc-500">
-                Orquestador · hilo Socket.IO
+                {isBuilder
+                  ? "Agent Builder · creación guiada"
+                  : "Orquestador · hilo Socket.IO"}
               </p>
             </div>
           </div>
@@ -267,18 +253,20 @@ export function AgentChat() {
 
       <div
         ref={messagesContainerRef}
-        className="h-[430px] space-y-4 overflow-y-auto px-4 py-6 sm:px-6"
+        className="h-[500px] space-y-4 overflow-y-auto px-4 py-6 sm:px-6"
       >
         {messages.map((message, index) => (
           <div
             key={`${message.role}-${index}`}
-            className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+            className={`flex ${
+              message.role === "user" ? "justify-end" : "justify-start"
+            }`}
           >
             <div
               className={
                 message.role === "user"
-                  ? "max-w-[85%] rounded-3xl rounded-br-lg bg-zinc-950 px-4 py-3 text-sm leading-6 text-white"
-                  : "max-w-[88%] rounded-3xl rounded-bl-lg bg-violet-50 px-4 py-3 text-sm leading-6 text-zinc-800"
+                  ? "max-w-[85%] whitespace-pre-wrap rounded-3xl rounded-br-lg bg-zinc-950 px-4 py-3 text-sm leading-6 text-white"
+                  : "max-w-[88%] whitespace-pre-wrap rounded-3xl rounded-bl-lg bg-violet-50 px-4 py-3 text-sm leading-6 text-zinc-800"
               }
             >
               {message.content}
@@ -290,7 +278,9 @@ export function AgentChat() {
           <div className="flex justify-start">
             <div className="flex items-center gap-2 rounded-3xl rounded-bl-lg bg-violet-50 px-4 py-3 text-sm text-violet-700">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Jorge está procesando el evento del socket...
+              {isBuilder
+                ? "Jorge está actualizando la definición del agente..."
+                : "Jorge está procesando el evento del socket..."}
             </div>
           </div>
         )}
@@ -307,7 +297,9 @@ export function AgentChat() {
             onKeyDown={handleComposerKeyDown}
             placeholder={
               socketConnected
-                ? "Escribe una tarea para Jorge..."
+                ? isBuilder
+                  ? "Describe el agente o responde la pregunta de Jorge..."
+                  : "Escribe una tarea para Jorge..."
                 : "Esperando conexión Socket.IO..."
             }
             rows={2}
