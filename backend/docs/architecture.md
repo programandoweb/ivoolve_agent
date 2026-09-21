@@ -120,7 +120,13 @@ Los agentes gestionados son capacidades globales del runtime; por eso el Builder
 Tools ejecutables actuales:
 
 - `provider.list`;
-- `provider.send_message`.
+- `provider.send_message`;
+- `prospecting.google_maps_search`;
+- `prospecting.google_search`;
+- `prospecting.score_lead`;
+- `video.capabilities`;
+- `video.generate`;
+- `video.status`.
 
 Una declaración en Markdown no concede permisos. El runtime valida ACL, tenant y rol.
 
@@ -135,6 +141,33 @@ Agente
 ```
 
 La respuesta automática de una conversación entrante no usa este approval; el gate protege acciones explícitas iniciadas como tool.
+
+
+## Generación audiovisual
+
+La inferencia de video permanece fuera del backend NestJS. El runtime llama mediante HTTP privado al servicio `ivoolve_video_generator_py`, normalmente ejecutado en el PC con GPU Intel:
+
+```text
+LLM / Agente
+   |
+   v
+ToolRegistry
+   |
+   +-- video.generate --------+
+   |                          |
+   +-- video.status           v
+                     Python :8650
+                         |
+                         v
+                    PyTorch XPU
+                         |
+                         v
+                 Wan 2.1 T2V 1.3B
+```
+
+El contrato es asíncrono: `video.generate` devuelve inmediatamente un `jobId`; el agente consulta `video.status` hasta obtener `completed` o `failed`.
+
+La conexión usa `VIDEO_GENERATOR_BASE_URL` y `VIDEO_GENERATOR_TOKEN`. El token sólo existe en backend y nunca se entrega al navegador. El worker serializa la inferencia a un job GPU por vez para evitar presión de VRAM.
 
 ## Providers y adapters
 
