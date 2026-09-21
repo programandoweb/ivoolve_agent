@@ -18,6 +18,7 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
+import { ProviderAdapterCatalogService } from './provider-adapter-catalog.service';
 import { ProvidersService } from './providers.service';
 
 type AuthRequest = Request & { user?: AuthenticatedUser };
@@ -25,11 +26,19 @@ type AuthRequest = Request & { user?: AuthenticatedUser };
 @Controller('providers')
 @UseGuards(AuthGuard, RolesGuard)
 export class ProvidersController {
-  constructor(private readonly providers: ProvidersService) {}
+  constructor(
+    private readonly providers: ProvidersService,
+    private readonly adapters: ProviderAdapterCatalogService,
+  ) {}
 
   @Get()
   list(@Req() request: AuthRequest) {
     return this.providers.list(request.user?.tenantId ?? 'default');
+  }
+
+  @Get('adapters')
+  adaptersList() {
+    return this.adapters.list();
   }
 
   @Post()
