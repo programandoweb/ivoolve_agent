@@ -155,12 +155,27 @@ export class IvoolveOpsIntegrationService {
 
   async createSsoTicket(
     agentId: string,
+    externalProjectId: string,
     externalUserId: string,
     correlationId?: string,
   ) {
     this.requireDatabase();
-    if (!this.registry.get(agentId)) {
-      throw new NotFoundException('Agente no encontrado.');
+
+    const links = await this.database.query<RowDataPacket[]>(
+      `SELECT agent_id
+         FROM integration_agent_links
+        WHERE external_source = 'ivoolveops'
+          AND external_project_id = ?
+          AND role = 'customer_support'
+          AND agent_id = ?
+          AND status = 'active'
+        LIMIT 1`,
+      [externalProjectId, agentId],
+    );
+    if (!links[0] || !this.registry.get(agentId)) {
+      throw new NotFoundException(
+        'El agente no pertenece al proyecto solicitado o no está activo.',
+      );
     }
 
     const rawTicket = randomBytes(32).toString('base64url');
@@ -186,6 +201,7 @@ export class IvoolveOpsIntegrationService {
     );
 
     await this.audit('integration.ivoolveops.sso_ticket_created', agentId, {
+      externalProjectId,
       externalUserId,
       correlationId,
       expiresAt: expiresAt.toISOString(),
