@@ -15,9 +15,11 @@ Antes de modificarlo:
 ## Principios
 
 - NestJS es el runtime/orquestador.
+- Socket.IO es el canal principal de conversación con agentes.
 - Redis conserva estado temporal.
 - BullMQ representa trabajos asíncronos.
 - Los agentes viven en `agents/<nombre>/`.
 - Jorge es fallback y futuro orquestador.
 - Los proveedores LLM deben permanecer desacoplados.
+- REST se reserva para endpoints auxiliares cuando corresponda.
 - No afirmar pruebas no ejecutadas.

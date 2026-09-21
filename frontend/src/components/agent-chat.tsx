@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  KeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 import {
   Bot,
   BrainCircuit,
@@ -8,8 +15,10 @@ import {
   Loader2,
   Send,
   Server,
-  Sparkles
+  Sparkles,
+  Unplug
 } from "lucide-react";
+import { io, Socket } from "socket.io-client";
 import { StatusPill } from "./status-pill";
 
 type ChatMessage = {
@@ -34,6 +43,11 @@ type ChatResponse = {
   messageCount: number;
 };
 
+type AgentError = {
+  sessionId?: string;
+  message?: string;
+};
+
 function getOrCreateSessionId(): string {
   const storageKey = "ivoolve-agent-session";
   const existing = window.localStorage.getItem(storageKey);
@@ -49,36 +63,87 @@ function getOrCreateSessionId(): string {
 }
 
 export function AgentChat() {
+  // useRef guarda la instancia real del socket sin provocar renders.
+  const socketRef = useRef<Socket | null>(null);
+
   const [health, setHealth] = useState<Health | null>(null);
   const [agents, setAgents] = useState<string[]>([]);
   const [fallback, setFallback] = useState("jorge");
   const [sessionId, setSessionId] = useState("");
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
       content:
-        "Hola. Soy Jorge, el agente orquestador. Pregúntame algo y observa cómo Next.js, NestJS, Redis y el LLM participan en el ciclo."
+        "Hola. Soy Jorge. Este chat ahora mantiene un hilo Socket.IO abierto con NestJS."
     }
   ]);
 
-  const online = health?.status === "ok";
-
   useEffect(() => {
-    setSessionId(getOrCreateSessionId());
+    const currentSessionId = getOrCreateSessionId();
+    setSessionId(currentSessionId);
 
-    async function loadRuntimeState() {
+    // El navegador abre UNA conexión persistente con NestJS.
+    // Ya no hacemos un POST HTTP por cada mensaje.
+    const socket = io(
+      `${process.env.NEXT_PUBLIC_SOCKET_URL ?? "http://localhost:5020"}/agents`,
+      {
+        transports: ["websocket"],
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000
+      }
+    );
+
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      setSocketConnected(true);
+    });
+
+    socket.on("disconnect", () => {
+      setSocketConnected(false);
+      setSending(false);
+    });
+
+    socket.on("agent:processing", () => {
+      setSending(true);
+    });
+
+    socket.on("agent:response", (data: ChatResponse) => {
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content: data.answer
+        }
+      ]);
+      setSending(false);
+    });
+
+    socket.on("agent:error", (error: AgentError) => {
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content: `No pude completar la petición: ${error.message ?? "Error del agente."}`
+        }
+      ]);
+      setSending(false);
+    });
+
+    async function loadAuxiliaryState() {
+      // Health y catálogo siguen siendo lecturas HTTP auxiliares.
+      // La conversación ya no pasa por estas rutas.
       const [healthResponse, agentsResponse] = await Promise.allSettled([
         fetch("/api/backend/health", { cache: "no-store" }),
         fetch("/api/backend/agents", { cache: "no-store" })
       ]);
 
       if (healthResponse.status === "fulfilled") {
-        const data = (await healthResponse.value.json()) as Health;
-        setHealth(data);
-      } else {
-        setHealth({ status: "offline" });
+        setHealth((await healthResponse.value.json()) as Health);
       }
 
       if (agentsResponse.status === "fulfilled") {
@@ -88,23 +153,28 @@ export function AgentChat() {
       }
     }
 
-    void loadRuntimeState();
+    void loadAuxiliaryState();
+
+    return () => {
+      // Muy importante: al desmontar el componente cerramos los listeners
+      // y la conexión para no crear sockets duplicados.
+      socket.removeAllListeners();
+      socket.disconnect();
+      socketRef.current = null;
+    };
   }, []);
 
   const agentLabel = useMemo(() => {
-    if (agents.length === 0) {
-      return fallback;
-    }
-
-    return agents.join(", ");
+    return agents.length > 0 ? agents.join(", ") : fallback;
   }, [agents, fallback]);
 
-  async function sendMessage(event: FormEvent<HTMLFormElement>) {
+  function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const message = input.trim();
+    const socket = socketRef.current;
 
-    if (!message || !sessionId || sending) {
+    if (!message || !sessionId || sending || !socket?.connected) {
       return;
     }
 
@@ -112,59 +182,20 @@ export function AgentChat() {
     setSending(true);
     setMessages((current) => [...current, { role: "user", content: message }]);
 
-    try {
-      const response = await fetch("/api/backend/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId,
-          message
-        })
-      });
-
-      const data = (await response.json()) as Partial<ChatResponse> & {
-        message?: string;
-      };
-
-      if (!response.ok || !data.answer) {
-        throw new Error(data.message ?? "El backend no respondió correctamente.");
-      }
-
-      setMessages((current) => [
-        ...current,
-        {
-          role: "assistant",
-          content: data.answer as string
-        }
-      ]);
-    } catch (error) {
-      setMessages((current) => [
-        ...current,
-        {
-          role: "assistant",
-          content:
-            error instanceof Error
-              ? `No pude completar la petición: ${error.message}`
-              : "No pude completar la petición."
-        }
-      ]);
-    } finally {
-      setSending(false);
-    }
+    // Este emit reemplaza completamente al antiguo fetch POST /agents/chat.
+    socket.emit("agent:message", {
+      sessionId,
+      message
+    });
   }
 
   function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    // Enter envía el mensaje, igual que en un chat tradicional.
-    // Shift+Enter conserva el comportamiento natural del textarea y crea una nueva línea.
     if (
       event.key === "Enter" &&
       !event.shiftKey &&
       !event.nativeEvent.isComposing
     ) {
       event.preventDefault();
-
-      // requestSubmit dispara el onSubmit del formulario.
-      // Así reutilizamos exactamente la misma lógica que el botón Enviar.
       event.currentTarget.form?.requestSubmit();
     }
   }
@@ -179,15 +210,22 @@ export function AgentChat() {
             </div>
             <div>
               <p className="font-semibold text-zinc-950">Jorge</p>
-              <p className="text-sm text-zinc-500">Orquestador y fallback</p>
+              <p className="text-sm text-zinc-500">
+                Orquestador · hilo Socket.IO
+              </p>
             </div>
           </div>
 
-          <StatusPill online={online} />
+          <StatusPill online={socketConnected} />
         </div>
       </div>
 
-      <div className="grid gap-3 border-b border-zinc-100 bg-zinc-50/70 p-4 sm:grid-cols-3 sm:p-6">
+      <div className="grid gap-3 border-b border-zinc-100 bg-zinc-50/70 p-4 sm:grid-cols-4 sm:p-6">
+        <InfoCard
+          icon={<Unplug className="h-4 w-4" />}
+          label="Socket"
+          value={socketConnected ? "Conectado" : "Desconectado"}
+        />
         <InfoCard
           icon={<Server className="h-4 w-4" />}
           label="Redis"
@@ -227,7 +265,7 @@ export function AgentChat() {
           <div className="flex justify-start">
             <div className="flex items-center gap-2 rounded-3xl rounded-bl-lg bg-violet-50 px-4 py-3 text-sm text-violet-700">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Jorge está procesando el ciclo...
+              Jorge está procesando el evento del socket...
             </div>
           </div>
         )}
@@ -242,13 +280,17 @@ export function AgentChat() {
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={handleComposerKeyDown}
-            placeholder="Escribe una tarea para Jorge..."
+            placeholder={
+              socketConnected
+                ? "Escribe una tarea para Jorge..."
+                : "Esperando conexión Socket.IO..."
+            }
             rows={2}
             className="max-h-36 min-h-12 flex-1 resize-none bg-transparent py-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
           />
           <button
             type="submit"
-            disabled={!online || sending || !input.trim()}
+            disabled={!socketConnected || sending || !input.trim()}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-zinc-300"
             aria-label="Enviar mensaje"
           >
@@ -261,7 +303,7 @@ export function AgentChat() {
         </div>
         <p className="mt-3 flex items-center gap-2 text-xs text-zinc-500">
           <Sparkles className="h-3.5 w-3.5 text-violet-500" />
-          Enter para enviar · Shift+Enter para nueva línea · Historial en Redis.
+          Enter envía · Shift+Enter nueva línea · conversación por Socket.IO.
         </p>
       </form>
     </div>

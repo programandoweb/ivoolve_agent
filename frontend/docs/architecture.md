@@ -1,29 +1,52 @@
 # Arquitectura frontend
 
+## Conversación
+
 ```text
+Browser / Next.js
+       |
+       | Socket.IO /agents
+       | conexión persistente
+       v
+NestJS :5020
+       |
+       | agent:message
+       v
+AgentRuntimeService
+       |
+       +--> Redis
+       +--> Jorge
+       +--> LLM
+       |
+       | agent:response
+       v
 Browser
-  |
-  v
-Next.js UI
-  |
-  v
-Route Handler /api/backend/*
-  |
-  v
-NestJS :4000
-  |
-  +--> Redis
-  +--> Agent Registry
-  +--> LLM
 ```
 
-## Razón del BFF
+## Eventos
 
-El navegador no consume `BACKEND_URL` directamente.
+### Cliente -> servidor
 
-Esto:
+- `agent:message`: `{ sessionId, message }`.
 
-- evita depender de CORS;
-- mantiene la URL interna fuera del bundle cliente;
-- crea una frontera para autenticación futura;
-- permite transformar errores y contratos sin acoplar la UI.
+### Servidor -> cliente
+
+- `agent:connected`
+- `agent:processing`
+- `agent:response`
+- `agent:error`
+
+## HTTP auxiliar
+
+Se conservan:
+
+- `GET /health`
+- `GET /agents`
+
+Ya no existe un POST REST de conversación en el frontend.
+
+## Idea pedagógica
+
+REST abre una petición, recibe una respuesta y termina.
+
+Socket.IO mantiene un canal abierto. Sobre ese mismo canal pueden viajar muchos eventos durante la vida de la página.
