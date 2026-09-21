@@ -29,7 +29,9 @@ export class RedisService implements OnModuleDestroy {
   }
 
   async saveSession(session: AgentSession): Promise<void> {
-    const ttl = Number(this.config.get<string>('SESSION_TTL_SECONDS', '86400'));
+    const ttl = Number(
+      this.config.get<string>('SESSION_TTL_SECONDS', '86400'),
+    );
     await this.setJson(this.sessionKey(session.sessionId), session, ttl);
   }
 
@@ -38,14 +40,14 @@ export class RedisService implements OnModuleDestroy {
     return raw ? (JSON.parse(raw) as T) : null;
   }
 
-  async setJson(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+  async setJson(
+    key: string,
+    value: unknown,
+    ttlSeconds: number,
+  ): Promise<void> {
     await this.redis.setex(key, ttlSeconds, JSON.stringify(value));
   }
 
-  /**
-   * Reclama una clave una única vez durante el TTL indicado.
-   * Se usa para idempotencia/locks ligeros sin separar GET y SET.
-   */
   async claim(key: string, ttlSeconds: number): Promise<boolean> {
     const result = await this.redis.set(
       key,
@@ -55,6 +57,57 @@ export class RedisService implements OnModuleDestroy {
       'NX',
     );
     return result === 'OK';
+  }
+
+  async acquireLease(
+    key: string,
+    owner: string,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    const result = await this.redis.set(
+      key,
+      owner,
+      'EX',
+      ttlSeconds,
+      'NX',
+    );
+    return result === 'OK';
+  }
+
+  async renewLease(
+    key: string,
+    owner: string,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    const script = `
+      if redis.call('GET', KEYS[1]) == ARGV[1] then
+        return redis.call('EXPIRE', KEYS[1], ARGV[2])
+      end
+      return 0
+    `;
+    const result = await this.redis.eval(
+      script,
+      1,
+      key,
+      owner,
+      String(ttlSeconds),
+    );
+
+    return Number(result) === 1;
+  }
+
+  async releaseLease(
+    key: string,
+    owner: string,
+  ): Promise<boolean> {
+    const script = `
+      if redis.call('GET', KEYS[1]) == ARGV[1] then
+        return redis.call('DEL', KEYS[1])
+      end
+      return 0
+    `;
+    const result = await this.redis.eval(script, 1, key, owner);
+    return Number(result) === 1;
   }
 
   async delete(key: string): Promise<void> {
