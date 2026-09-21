@@ -11,6 +11,7 @@ Plataforma para construir, operar y supervisar agentes de IA con canales externo
 - LM Studio / API compatible OpenAI
 - WhatsApp vía Baileys
 - Google Maps/Places + Google Search para prospección
+- Ivoolve Video Generator local (Python + Intel XPU, puerto 8650)
 
 ## Capacidades actuales
 
@@ -37,7 +38,8 @@ Plataforma para construir, operar y supervisar agentes de IA con canales externo
 - audit trail;
 - CI con tests backend + build backend/frontend.
 - provisioning idempotente de agentes de soporte desde IvoolveOps;
-- SSO temporal single-use para abrir un agente sin compartir contraseñas.
+- SSO temporal single-use para abrir un agente sin compartir contraseñas;
+- generación asíncrona de videos de hasta 5 segundos mediante worker local Intel XPU.
 
 ## Agente comercial Ivoolve ERP
 
@@ -64,6 +66,37 @@ GOOGLE_SEARCH_ENGINE_ID=
 ```
 
 `GOOGLE_MAPS_API_KEY` es obligatoria para descubrimiento. Google Search es opcional mientras no se requiera enriquecimiento web.
+
+
+## Generación de video local
+
+`ivoolve_agent` no ejecuta modelos de video en el VPS. Usa un worker Python desacoplado:
+
+```text
+Agent Runtime
+  -> Tool Registry
+  -> video.generate
+  -> ivoolve_video_generator_py :8650
+  -> PyTorch XPU / Intel GPU
+  -> Wan 2.1 T2V 1.3B
+  -> MP4
+```
+
+Configuración:
+
+```env
+VIDEO_GENERATOR_BASE_URL=http://10.8.0.2:8650
+VIDEO_GENERATOR_TOKEN=
+VIDEO_GENERATOR_TIMEOUT_MS=15000
+```
+
+Tools disponibles:
+
+- `video.capabilities`;
+- `video.generate`;
+- `video.status`.
+
+El repositorio del worker es `programandoweb/ivoolve_video_generator_py`. No debe exponerse directamente a Internet; usar red privada/VPN.
 
 ## Dashboard
 
