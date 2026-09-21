@@ -11,6 +11,7 @@ import {
 import { Server, Socket } from 'socket.io';
 
 import { AuthService } from '../auth/auth.service';
+import { AgentBuilderService } from './agent-builder.service';
 import { AgentRuntimeService } from './agent-runtime.service';
 
 interface AgentMessagePayload {
@@ -19,9 +20,7 @@ interface AgentMessagePayload {
 }
 
 function getCookieValue(cookieHeader: string | undefined, name: string) {
-  if (!cookieHeader) {
-    return undefined;
-  }
+  if (!cookieHeader) return undefined;
 
   const prefix = `${name}=`;
   const cookie = cookieHeader
@@ -50,11 +49,11 @@ export class AgentsGateway
 
   constructor(
     private readonly runtime: AgentRuntimeService,
+    private readonly builder: AgentBuilderService,
     private readonly auth: AuthService,
   ) {}
 
   async handleConnection(client: Socket): Promise<void> {
-    // La cookie HttpOnly creada por Next.js también viaja al handshake WebSocket.
     const token = getCookieValue(
       client.handshake.headers.cookie,
       'ivoolve_session',
@@ -69,11 +68,7 @@ export class AgentsGateway
     try {
       const user = await this.auth.verifyToken(token);
       client.data.user = user;
-
-      this.logger.log(
-        `Socket autenticado: ${client.id} (${user.username})`,
-      );
-
+      this.logger.log(`Socket autenticado: ${client.id} (${user.username})`);
       client.emit('agent:connected', {
         socketId: client.id,
         namespace: '/agents',
@@ -94,8 +89,28 @@ export class AgentsGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: AgentMessagePayload,
   ): Promise<void> {
+    await this.processMessage(client, payload, 'chat');
+  }
+
+  @SubscribeMessage('agent-builder:message')
+  async handleAgentBuilderMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: AgentMessagePayload,
+  ): Promise<void> {
+    await this.processMessage(client, payload, 'builder');
+  }
+
+  private async processMessage(
+    client: Socket,
+    payload: AgentMessagePayload,
+    mode: 'chat' | 'builder',
+  ): Promise<void> {
+    const eventPrefix = mode === 'builder' ? 'agent-builder' : 'agent';
+
     if (!client.data.user) {
-      client.emit('agent:error', { message: 'Autenticación requerida.' });
+      client.emit(`${eventPrefix}:error`, {
+        message: 'Autenticación requerida.',
+      });
       return;
     }
 
@@ -103,20 +118,24 @@ export class AgentsGateway
     const message = payload?.message?.trim();
 
     if (!sessionId || !message) {
-      client.emit('agent:error', {
+      client.emit(`${eventPrefix}:error`, {
         message: 'sessionId y message son obligatorios.',
       });
       return;
     }
 
-    client.emit('agent:processing', {
+    client.emit(`${eventPrefix}:processing`, {
       sessionId,
       agent: 'jorge',
     });
 
     try {
-      const result = await this.runtime.chat(sessionId, message);
-      client.emit('agent:response', result);
+      const result =
+        mode === 'builder'
+          ? await this.builder.chat(sessionId, message)
+          : await this.runtime.chat(sessionId, message);
+
+      client.emit(`${eventPrefix}:response`, result);
     } catch (error) {
       const detail =
         error instanceof Error ? error.message : 'Error desconocido';
@@ -125,7 +144,7 @@ export class AgentsGateway
         `Error procesando sesión ${sessionId}: ${detail}`,
       );
 
-      client.emit('agent:error', {
+      client.emit(`${eventPrefix}:error`, {
         sessionId,
         message: detail,
       });
