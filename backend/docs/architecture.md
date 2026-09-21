@@ -1,114 +1,220 @@
 # Arquitectura actual
 
-## Flujo conversacional
+## Visión general
 
 ```text
-Dashboard / Socket.IO
-      |
-      v
-AgentRuntimeService
-      |
-      +--> Redis: sesión temporal
-      |
-      +--> AgentRegistry: identidad del agente
-      |
-      +--> ToolRegistry: tools ejecutables
-      |
-      +--> LLM: razonamiento
-      |
-      +--> Delegación opcional Jorge -> subagente
-      |
-      v
-Respuesta
+Usuario / Canal externo
+        |
+        +----------------------+
+        |                      |
+        v                      v
+Dashboard / Socket.IO      Provider Adapter
+        |                      |
+        v                      v
+ Auth + RBAC            NormalizedProviderMessage
+        |                      |
+        |                    BullMQ
+        |                      |
+        +----------+-----------+
+                   |
+                   v
+          AgentRuntimeService
+                   |
+       +-----------+-----------+
+       |           |           |
+       v           v           v
+ AgentRegistry   LLM      ToolRegistry
+       |                       |
+       |                 Approval Gate
+       |                       |
+       +-----------+-----------+
+                   |
+                   v
+              Provider
+                   |
+                   v
+               Usuario
 ```
-
-## Flujo multicanal asíncrono
-
-```text
-WhatsApp / futuro Slack / otro canal
-      |
-      v
-Provider Adapter
-      |
-      v
-NormalizedProviderMessage
-      |
-      v
-BullMQ agent-jobs
-      |
-      v
-ProviderMessageProcessor
-      |
-      v
-ProviderRoutingService
-      |
-      +--> Redis claim: idempotencia
-      |
-      +--> Agent Registry: ACL + selección
-      |
-      +--> AgentRuntimeService
-      |
-      +--> Tool Registry
-      |
-      +--> LLM
-      |
-      v
-ProvidersService.sendText()
-      |
-      v
-Canal externo
-```
-
-Cada contacto mantiene una sesión independiente:
-
-```text
-provider:{providerId}:contact:{conversationId}
-```
-
-## Componentes
-
-### NestJS
-
-API, Socket.IO, orquestación, workers y adapters.
-
-### Redis
-
-Estado temporal, sesiones, idempotencia y backend de BullMQ.
-
-### BullMQ
-
-Recibe eventos de providers y los ejecuta con reintentos y backoff. Evita que el evento de Baileys quede bloqueado esperando al LLM.
-
-### Agent Registry
-
-Unifica agentes core y agentes gestionados creados desde el dashboard.
-
-### Jorge
-
-Agente principal y supervisor. Puede responder directamente o delegar en un subagente registrado mediante una instrucción estructurada.
-
-### Tool Registry
-
-Frontera de acciones reales. Actualmente:
-
-- `provider.list`
-- `provider.send_message`
-
-La declaración de una tool dentro de un agente no concede permisos por sí misma: el runtime valida la ACL del provider.
-
-### Providers
-
-Dominio genérico de canales externos. El primer adapter es `whatsapp_baileys`. El contrato está pensado para incorporar Slack, Telegram, email u otros medios sin modificar el runtime de agentes.
-
-### Observabilidad
-
-Las ejecuciones del MVP se guardan como JSONL bajo `RUNTIME_DATA_PATH` y se consultan desde `/runtime/executions`. El dashboard también consulta estadísticas de BullMQ.
 
 ## Persistencia
 
-- Redis: temporal/coordinación.
-- `data/managed-agents`: agentes gestionados.
-- `data/providers`: metadatos y credenciales de canales.
-- `data/runtime`: trazas operativas.
+### MariaDB
 
-En producción estos directorios deben estar en volumen persistente. Para alta disponibilidad/múltiples instancias, la siguiente evolución es mover metadatos y trazas a una base de datos compartida manteniendo fuera del repositorio las credenciales sensibles.
+Fuente durable compartida cuando `DATABASE_URL` está configurada:
+
+- tenants;
+- usuarios y roles;
+- agentes gestionados;
+- metadatos de providers;
+- ejecuciones del runtime;
+- approvals;
+- audit events.
+
+Las migraciones bootstrap son idempotentes mediante `CREATE TABLE IF NOT EXISTS`.
+
+### Redis
+
+Redis no es la fuente durable. Se usa para:
+
+- sesiones temporales;
+- BullMQ;
+- idempotencia de mensajes;
+- leases distribuidos de providers.
+
+### Fallback local
+
+Sin MariaDB, desarrollo puede seguir usando archivos bajo `backend/data` para agentes, providers, approvals, auditoría y trazas.
+
+## Multi-tenancy y RBAC
+
+El JWT contiene:
+
+- `sub` / user id;
+- `username`;
+- `role`;
+- `tenantId`.
+
+Roles:
+
+- `admin`: administración y decisiones humanas;
+- `operator`: operación de providers;
+- `viewer`: observación/chat sin tools de escritura.
+
+El tenant se propaga por:
+
+```text
+JWT
+ -> Socket/REST
+ -> RuntimeInvocationContext
+ -> ToolRegistry
+ -> Provider/Execution/Approval store
+```
+
+Las sesiones interactivas usan prefijo:
+
+```text
+tenant:{tenantId}:{sessionId}
+```
+
+y las conversaciones de provider:
+
+```text
+tenant:{tenantId}:provider:{providerId}:contact:{conversationId}
+```
+
+## Agent runtime
+
+Jorge sigue siendo el supervisor/fallback. Puede:
+
+- responder directamente;
+- ejecutar tools registradas;
+- delegar a un subagente real mediante sesión hija;
+- crear agentes mediante Agent Builder cuando el actor es admin.
+
+Los agentes gestionados son capacidades globales del runtime; por eso el Builder está reservado a administradores mientras no exista un catálogo de agentes por tenant.
+
+## Tools y approvals
+
+Tools ejecutables actuales:
+
+- `provider.list`;
+- `provider.send_message`.
+
+Una declaración en Markdown no concede permisos. El runtime valida ACL, tenant y rol.
+
+Por defecto `provider.send_message` pasa por Human-in-the-Loop:
+
+```text
+Agente
+  -> ToolRegistry
+  -> Approval pending
+  -> Admin approve/reject
+  -> execute
+```
+
+La respuesta automática de una conversación entrante no usa este approval; el gate protege acciones explícitas iniciadas como tool.
+
+## Providers y adapters
+
+El dominio Provider está desacoplado del canal.
+
+Adapter activo:
+
+- `whatsapp_baileys`.
+
+El catálogo se consulta en:
+
+```http
+GET /providers/adapters
+```
+
+Slack, Telegram y email no están implementados todavía. El contrato ya permite agregarlos posteriormente sin modificar el núcleo del runtime.
+
+## WhatsApp multi-instancia
+
+Cada provider obtiene un lease Redis:
+
+```text
+ivoolve:provider-owner:{providerId}
+```
+
+Flujo:
+
+1. una instancia adquiere el lease con NX + TTL;
+2. renueva periódicamente;
+3. otra instancia no puede abrir el mismo provider;
+4. si se pierde ownership, el socket local se cierra;
+5. disconnect/shutdown libera el lease.
+
+Las credenciales Baileys siguen siendo archivos sensibles y deben montarse en almacenamiento persistente apropiado.
+
+## BullMQ e idempotencia
+
+```text
+Baileys
+ -> normalized message
+ -> BullMQ agent-jobs
+ -> ProviderMessageProcessor
+ -> Redis claim
+ -> ProviderRoutingService
+ -> AgentRuntimeService
+ -> respuesta
+```
+
+El claim se mantiene cuando el turno completa y se libera si el procesamiento falla, permitiendo retries reales con backoff.
+
+## Observabilidad
+
+`/runtime/metrics` entrega por tenant:
+
+- success rate;
+- completadas/fallidas;
+- promedio de duración;
+- P95;
+- agregados por agente/provider;
+- alertas configurables.
+
+`/runtime/executions` entrega trazas recientes del tenant.
+
+`/health` incluye Redis y MariaDB.
+
+## Auditoría
+
+Eventos sensibles se guardan en MariaDB o fallback JSONL:
+
+- creación/cambio de usuarios;
+- creación de tenant;
+- solicitud de approval;
+- aprobación/rechazo;
+- fallo al ejecutar una aprobación.
+
+## Seguridad de datos
+
+No deben versionarse:
+
+- `.env`;
+- sesiones/credenciales Baileys;
+- datos de runtime;
+- agentes gestionados creados en ejecución.
+
+El siguiente bloque de trabajo es QA integral, definido en `backend/docs/qa/full-qa-plan.md`.
