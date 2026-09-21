@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import { ApprovalsService } from '../approvals/approvals.service';
 import { ProvidersService } from '../providers/providers.service';
 import {
   RuntimeToolDefinition,
@@ -14,7 +15,10 @@ import {
 
 @Injectable()
 export class ToolRegistryService {
-  constructor(private readonly providers: ProvidersService) {}
+  constructor(
+    private readonly providers: ProvidersService,
+    private readonly approvals: ApprovalsService,
+  ) {}
 
   definitions(): RuntimeToolDefinition[] {
     return [
@@ -27,7 +31,7 @@ export class ToolRegistryService {
       {
         name: 'provider.send_message',
         description:
-          'Envía un mensaje de texto por un provider autorizado para el agente actual.',
+          'Solicita el envío de un mensaje de texto por un provider autorizado. Puede requerir aprobación humana.',
         arguments: {
           providerId: 'ID del provider autorizado',
           recipient: 'Destinatario o JID',
@@ -92,6 +96,30 @@ export class ToolRegistryService {
         const providerId = this.requiredString(call, 'providerId');
         const recipient = this.requiredString(call, 'recipient');
         const text = this.requiredString(call, 'text');
+
+        if (this.approvals.requiresApproval(call.tool)) {
+          const approval = await this.approvals.request({
+            tenantId: context.tenantId,
+            agentId: context.agentId,
+            actionName: call.tool,
+            payload: {
+              providerId,
+              recipient,
+              text,
+            },
+            requestedBy: context.actorId
+              ? `user:${context.actorId}`
+              : `agent:${context.agentId}`,
+          });
+
+          return {
+            status: 'approval_required',
+            approvalId: approval.id,
+            action: approval.actionName,
+            message:
+              'La acción quedó pendiente de aprobación humana y aún no fue ejecutada.',
+          };
+        }
 
         return this.providers.sendText(
           providerId,
