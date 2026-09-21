@@ -70,6 +70,7 @@ GET /integrations/ivoolveops/sso/consume?ticket=<opaque>
 
 Características:
 
+- el request incluye `agent_id` + `external_project_id` y se valida que exista un vínculo activo Project → Agent antes de emitir acceso;
 - ticket aleatorio opaco;
 - solo SHA-256 persistido;
 - TTL configurable;
