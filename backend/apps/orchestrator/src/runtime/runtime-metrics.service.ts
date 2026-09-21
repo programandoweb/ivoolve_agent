@@ -11,8 +11,8 @@ export class RuntimeMetricsService {
     private readonly config: ConfigService,
   ) {}
 
-  async snapshot() {
-    const sample = await this.executions.recent(500);
+  async snapshot(tenantId?: string) {
+    const sample = await this.executions.recent(500, tenantId);
     const windowMinutes = Number(
       this.config.get<string>('METRICS_WINDOW_MINUTES', '60'),
     );
@@ -90,6 +90,7 @@ export class RuntimeMetricsService {
 
     return {
       generatedAt: new Date().toISOString(),
+      tenantId,
       windowMinutes,
       total: windowed.length,
       completed: completed.length,
