@@ -25,6 +25,13 @@ jobs:
       - name: Install backend dependencies
         run: npm install
 
+      - name: Publish resolved backend lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-package-lock
+          path: backend/package-lock.json
+          retention-days: 1
+
       - name: Run backend tests
         run: npm test -- --runInBand
 
