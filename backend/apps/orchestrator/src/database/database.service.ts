@@ -12,6 +12,15 @@ import {
   type RowDataPacket,
 } from 'mysql2/promise';
 
+type SqlValue =
+  | string
+  | number
+  | boolean
+  | Date
+  | Buffer
+  | null
+  | undefined;
+
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DatabaseService.name);
@@ -65,7 +74,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
   async query<T extends RowDataPacket[] = RowDataPacket[]>(
     sql: string,
-    params: unknown[] = [],
+    params: SqlValue[] = [],
   ): Promise<T> {
     if (!this.pool) {
       throw new Error('La persistencia compartida no está habilitada.');
@@ -77,13 +86,16 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
   async execute(
     sql: string,
-    params: unknown[] = [],
+    params: SqlValue[] = [],
   ): Promise<ResultSetHeader> {
     if (!this.pool) {
       throw new Error('La persistencia compartida no está habilitada.');
     }
 
-    const [result] = await this.pool.execute<ResultSetHeader>(sql, params);
+    const [result] = await this.pool.execute<ResultSetHeader>(
+      sql,
+      params as any,
+    );
     return result;
   }
 
