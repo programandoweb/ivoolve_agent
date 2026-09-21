@@ -68,6 +68,10 @@ export class ProviderRoutingService {
         sessionId,
         message.text,
         agentId,
+        {
+          source: 'provider',
+          tenantId: provider.tenantId,
+        },
       );
 
       await this.providers.sendText(
@@ -95,8 +99,6 @@ export class ProviderRoutingService {
         durationMs: Date.now() - started,
       });
 
-      // El claim solo queda retenido cuando el mensaje terminó o se ignoró.
-      // Si el turno falló, liberarlo permite que BullMQ reintente el mismo job.
       await this.redis.delete(claimKey);
 
       this.logger.error(
