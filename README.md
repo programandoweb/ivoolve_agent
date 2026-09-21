@@ -1,65 +1,68 @@
 # Ivoolve Agent
 
-Monorepo para construir, gestionar y ejecutar agentes de IA con canales externos.
+Plataforma para construir, operar y supervisar agentes de IA con canales externos.
 
 ## Stack
 
 - NestJS + Socket.IO: 5020
 - Next.js: 5021
-- Redis: 6379
-- BullMQ: trabajos asíncronos
+- Redis + BullMQ
+- MariaDB
 - LM Studio / API compatible OpenAI
-- WhatsApp: Baileys
+- WhatsApp vía Baileys
 
 ## Capacidades actuales
 
 - dashboard seguro;
+- usuarios, roles y tenants;
 - chat en tiempo real;
 - Agent Builder conversacional;
 - agentes core y gestionados;
 - delegación Jorge → subagentes;
 - Tool Registry ejecutable;
-- providers multicanal con adapter WhatsApp/Baileys;
-- múltiples números WhatsApp independientes;
-- QR, reconexión y ACL por agente;
+- Human-in-the-Loop approvals;
+- providers tenant-aware;
+- WhatsApp/Baileys con QR y reconexión;
+- múltiples números independientes;
+- ownership multi-instancia mediante leases Redis;
 - routing Provider → BullMQ → Agente → Provider;
-- sesión independiente por contacto;
-- idempotencia de mensajes;
-- observabilidad de ejecuciones y colas;
-- tests backend dentro de GitHub Actions.
+- idempotencia + retries;
+- persistencia durable MariaDB con fallback local;
+- métricas, P95 y alertas;
+- audit trail;
+- CI con tests backend + build backend/frontend.
 
 ## Dashboard
 
 - `/dashboard` — resumen;
 - `/dashboard/agents` — agentes;
-- `/dashboard/agents/create` — Agent Builder;
+- `/dashboard/agents/create` — Agent Builder, solo admin;
 - `/dashboard/providers` — canales/providers;
+- `/dashboard/approvals` — decisiones humanas, solo admin;
+- `/dashboard/access` — usuarios y roles, solo admin;
 - `/dashboard/chat` — conversación;
-- `/dashboard/runtime` — jobs, infraestructura y ejecuciones;
+- `/dashboard/runtime` — jobs, métricas, alertas y ejecuciones;
 - `/dashboard/security` — seguridad.
 
 ## Inicio local
 
+Backend:
+
 ```powershell
 cd D:\ivoolve_agent\backend
+Copy-Item .env.example .env
 npm install
-docker compose up -d redis
+docker compose up -d
 ```
 
-Genera las credenciales administrativas:
+Genera credenciales:
 
 ```powershell
 npm run auth:hash -- "TuClaveSegura"
 npm run auth:secret
 ```
 
-Configura `backend/.env` y luego:
-
-```bat
-D:\ivoolve_agent\iniciar.bat
-```
-
-Abre:
+Luego inicia el proyecto con el flujo local habitual y abre:
 
 ```text
 http://localhost:5021
@@ -67,32 +70,39 @@ http://localhost:5021
 
 ## Persistencia
 
-Redis se usa para coordinación y estado temporal. Los datos de runtime del MVP se almacenan fuera de Git:
+Con `DATABASE_URL`, MariaDB guarda:
 
-- `backend/data/managed-agents/`
-- `backend/data/providers/`
-- `backend/data/runtime/`
+- usuarios/tenants;
+- agentes gestionados;
+- providers;
+- ejecuciones;
+- approvals;
+- auditoría.
 
-En producción deben montarse sobre almacenamiento persistente.
+Redis queda para estado temporal, BullMQ, idempotencia y leases.
 
-## Arquitectura multicanal
+Las credenciales Baileys permanecen fuera de Git y requieren volumen persistente.
+
+## Providers
+
+Adapter implementado y verificable:
+
+- WhatsApp/Baileys.
+
+El contrato está preparado para otros adapters, pero Slack, Telegram y email son expansiones posteriores; no se consideran implementados todavía.
+
+## Estado
+
+Las fases estructurales previas al QA están cerradas.
+
+Plan de QA:
 
 ```text
-WhatsApp / futuro Slack
-        ↓
-     Provider
-        ↓
-      BullMQ
-        ↓
- Provider Router
-        ↓
-      Agente
-    ↙       ↘
-  LLM      Tools
-        ↓
-     Provider
-        ↓
-      Usuario
+backend/docs/qa/full-qa-plan.md
 ```
 
-La arquitectura detallada está en `backend/docs/architecture.md`.
+Arquitectura:
+
+```text
+backend/docs/architecture.md
+```
