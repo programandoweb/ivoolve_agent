@@ -2,15 +2,39 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { promises as fs } from 'node:fs';
 import { join, resolve } from 'node:path';
+import type { RowDataPacket } from 'mysql2/promise';
 
+import { DatabaseService } from '../database/database.service';
 import { AgentDefinition } from './agent.types';
 import { AgentDraft, ManagedAgentRecord } from './agent-builder.types';
 
+interface ManagedAgentRow extends RowDataPacket {
+  id: string;
+  definition_json: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
 @Injectable()
 export class ManagedAgentStoreService {
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly database: DatabaseService,
+  ) {}
 
   async list(): Promise<AgentDefinition[]> {
+    if (this.database.enabled) {
+      const rows = await this.database.query<ManagedAgentRow[]>(
+        'SELECT id, definition_json, created_at, updated_at FROM managed_agents ORDER BY created_at ASC',
+      );
+
+      return rows.map((row) =>
+        this.toRuntimeDefinition(
+          JSON.parse(row.definition_json) as AgentDraft,
+        ),
+      );
+    }
+
     const directory = this.getDirectory();
     await fs.mkdir(directory, { recursive: true });
 
@@ -29,6 +53,14 @@ export class ManagedAgentStoreService {
   }
 
   async exists(slug: string): Promise<boolean> {
+    if (this.database.enabled) {
+      const rows = await this.database.query<RowDataPacket[]>(
+        'SELECT id FROM managed_agents WHERE id = ? LIMIT 1',
+        [slug],
+      );
+      return rows.length > 0;
+    }
+
     try {
       await fs.access(this.getFilePath(slug));
       return true;
@@ -38,26 +70,43 @@ export class ManagedAgentStoreService {
   }
 
   async create(draft: AgentDraft): Promise<AgentDefinition> {
+    if (await this.exists(draft.slug)) {
+      throw new ConflictException(
+        `Ya existe un agente con id "${draft.slug}".`,
+      );
+    }
+
+    const now = new Date();
+    const tenantId = this.config.get<string>('DEFAULT_TENANT_ID', 'default');
+
+    if (this.database.enabled) {
+      await this.database.execute(
+        `INSERT INTO managed_agents
+          (id, tenant_id, definition_json, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        [draft.slug, tenantId, JSON.stringify(draft), now, now],
+      );
+
+      return this.toRuntimeDefinition(draft);
+    }
+
     const directory = this.getDirectory();
     await fs.mkdir(directory, { recursive: true });
 
-    if (await this.exists(draft.slug)) {
-      throw new ConflictException(`Ya existe un agente con id "${draft.slug}".`);
-    }
-
-    const now = new Date().toISOString();
     const record: ManagedAgentRecord = {
       version: 1,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
       definition: draft,
     };
 
-    // Escritura atómica simple: primero temporal y luego rename.
-    // Evita dejar un JSON parcial si el proceso se interrumpe.
     const finalPath = this.getFilePath(draft.slug);
     const temporaryPath = `${finalPath}.tmp`;
-    await fs.writeFile(temporaryPath, JSON.stringify(record, null, 2), 'utf8');
+    await fs.writeFile(
+      temporaryPath,
+      JSON.stringify(record, null, 2),
+      'utf8',
+    );
     await fs.rename(temporaryPath, finalPath);
 
     return this.toRuntimeDefinition(draft);
@@ -80,7 +129,9 @@ export class ManagedAgentStoreService {
       ...draft.responsibilities.map((item) => `- ${item}`),
       '',
       '## Fuera de alcance',
-      ...(draft.exclusions.length ? draft.exclusions : ['- No definido.']),
+      ...(draft.exclusions.length
+        ? draft.exclusions.map((item) => `- ${item}`)
+        : ['- No definido.']),
       '',
       '## Resultado esperado',
       draft.expectedOutput,
@@ -90,13 +141,19 @@ export class ManagedAgentStoreService {
       '',
       '## Reglas de aprobación',
       ...(draft.requiresApproval.length
-        ? draft.requiresApproval.map((item) => `- Requiere aprobación: ${item}`)
-        : ['- No hay acciones adicionales declaradas que requieran aprobación.']),
+        ? draft.requiresApproval.map(
+            (item) => `- Requiere aprobación: ${item}`,
+          )
+        : [
+            '- No hay acciones adicionales declaradas que requieran aprobación.',
+          ]),
       '',
       '## Acciones prohibidas',
       ...(draft.forbiddenActions.length
         ? draft.forbiddenActions.map((item) => `- ${item}`)
-        : ['- No ejecutar acciones fuera de las herramientas y permisos declarados.']),
+        : [
+            '- No ejecutar acciones fuera de las herramientas y permisos declarados.',
+          ]),
       '',
       `Supervisor: ${draft.supervisor || 'jorge'}`,
       `Puede delegar: ${draft.canDelegate ? 'sí' : 'no'}`,
@@ -117,10 +174,14 @@ export class ManagedAgentStoreService {
 
     const tools = [
       '# Skills',
-      ...(draft.skills.length ? draft.skills.map((item) => `- ${item}`) : ['- Ninguno declarado.']),
+      ...(draft.skills.length
+        ? draft.skills.map((item) => `- ${item}`)
+        : ['- Ninguno declarado.']),
       '',
       '# Tools',
-      ...(draft.tools.length ? draft.tools.map((item) => `- ${item}`) : ['- Ninguna declarada.']),
+      ...(draft.tools.length
+        ? draft.tools.map((item) => `- ${item}`)
+        : ['- Ninguna declarada.']),
       '',
       'Una herramienta declarada aquí solo puede ejecutarse si existe un adapter real en el runtime.',
     ].join('\n');
@@ -144,7 +205,10 @@ export class ManagedAgentStoreService {
   private getDirectory(): string {
     return resolve(
       process.cwd(),
-      this.config.get<string>('AGENTS_MANAGED_PATH', 'data/managed-agents'),
+      this.config.get<string>(
+        'AGENTS_MANAGED_PATH',
+        'data/managed-agents',
+      ),
     );
   }
 
