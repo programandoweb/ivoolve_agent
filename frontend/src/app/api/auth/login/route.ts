@@ -23,6 +23,9 @@ export async function POST(request: NextRequest) {
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/",
+      ...(process.env.SESSION_COOKIE_DOMAIN
+        ? { domain: process.env.SESSION_COOKIE_DOMAIN }
+        : {}),
       maxAge: 60 * 60 * 8
     });
 
