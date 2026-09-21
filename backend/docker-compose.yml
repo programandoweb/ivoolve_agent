@@ -1,6 +1,5 @@
 services:
   redis:
-    # Redis funciona como memoria operativa y backend de BullMQ.
     image: redis:7-alpine
     container_name: ivoolve-agent-redis
     ports:
@@ -14,5 +13,25 @@ services:
       timeout: 3s
       retries: 10
 
+  mariadb:
+    image: mariadb:11.8
+    container_name: ivoolve-agent-mariadb
+    environment:
+      MARIADB_DATABASE: ivoolve_agent
+      MARIADB_USER: ivoolve
+      MARIADB_PASSWORD: ivoolve
+      MARIADB_ROOT_PASSWORD: ivoolve-root
+    ports:
+      - "3307:3306"
+    volumes:
+      - ivoolve_agent_mariadb_data:/var/lib/mysql
+    healthcheck:
+      test:
+        ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
 volumes:
   ivoolve_agent_redis_data:
+  ivoolve_agent_mariadb_data:
