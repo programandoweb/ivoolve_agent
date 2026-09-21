@@ -8,6 +8,7 @@ import { DatabaseService } from '../database/database.service';
 import { ProviderRecord } from './provider.types';
 
 interface ProviderRow extends RowDataPacket {
+  tenant_id: string | null;
   record_json: string;
 }
 
@@ -33,45 +34,80 @@ export class ProviderStoreService {
     return join(this.basePath, 'sessions', providerId);
   }
 
-  async list(): Promise<ProviderRecord[]> {
+  async list(tenantId?: string): Promise<ProviderRecord[]> {
     if (this.database.enabled) {
-      const rows = await this.database.query<ProviderRow[]>(
-        'SELECT record_json FROM providers ORDER BY created_at ASC',
-      );
+      const rows = tenantId
+        ? await this.database.query<ProviderRow[]>(
+            `SELECT tenant_id, record_json
+               FROM providers
+              WHERE tenant_id = ?
+              ORDER BY created_at ASC`,
+            [tenantId],
+          )
+        : await this.database.query<ProviderRow[]>(
+            `SELECT tenant_id, record_json
+               FROM providers
+              ORDER BY created_at ASC`,
+          );
 
-      return rows.map((row) => JSON.parse(row.record_json) as ProviderRecord);
+      return rows.map((row) =>
+        this.normalize(
+          JSON.parse(row.record_json) as Partial<ProviderRecord>,
+          row.tenant_id ?? undefined,
+        ),
+      );
     }
 
     try {
       const raw = await fs.readFile(this.registryPath, 'utf8');
-      return JSON.parse(raw) as ProviderRecord[];
+      const all = (JSON.parse(raw) as Partial<ProviderRecord>[]).map(
+        (provider) => this.normalize(provider),
+      );
+      return tenantId
+        ? all.filter((provider) => provider.tenantId === tenantId)
+        : all;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
       throw error;
     }
   }
 
-  async get(id: string): Promise<ProviderRecord | undefined> {
+  async get(
+    id: string,
+    tenantId?: string,
+  ): Promise<ProviderRecord | undefined> {
     if (this.database.enabled) {
-      const rows = await this.database.query<ProviderRow[]>(
-        'SELECT record_json FROM providers WHERE id = ? LIMIT 1',
-        [id],
-      );
+      const rows = tenantId
+        ? await this.database.query<ProviderRow[]>(
+            `SELECT tenant_id, record_json
+               FROM providers
+              WHERE id = ? AND tenant_id = ?
+              LIMIT 1`,
+            [id, tenantId],
+          )
+        : await this.database.query<ProviderRow[]>(
+            `SELECT tenant_id, record_json
+               FROM providers
+              WHERE id = ?
+              LIMIT 1`,
+            [id],
+          );
 
       return rows[0]
-        ? (JSON.parse(rows[0].record_json) as ProviderRecord)
+        ? this.normalize(
+            JSON.parse(rows[0].record_json) as Partial<ProviderRecord>,
+            rows[0].tenant_id ?? undefined,
+          )
         : undefined;
     }
 
-    return (await this.list()).find((provider) => provider.id === id);
+    return (await this.list(tenantId)).find(
+      (provider) => provider.id === id,
+    );
   }
 
   async save(record: ProviderRecord): Promise<ProviderRecord> {
     if (this.database.enabled) {
-      const tenantId = this.config.get<string>(
-        'DEFAULT_TENANT_ID',
-        'default',
-      );
       const createdAt = new Date(record.createdAt);
       const updatedAt = new Date(record.updatedAt);
 
@@ -85,7 +121,7 @@ export class ProviderStoreService {
            updated_at = VALUES(updated_at)`,
         [
           record.id,
-          tenantId,
+          record.tenantId,
           JSON.stringify(record),
           createdAt,
           updatedAt,
@@ -96,7 +132,9 @@ export class ProviderStoreService {
     }
 
     const providers = await this.list();
-    const index = providers.findIndex((provider) => provider.id === record.id);
+    const index = providers.findIndex(
+      (provider) => provider.id === record.id,
+    );
 
     if (index >= 0) providers[index] = record;
     else providers.push(record);
@@ -105,12 +143,24 @@ export class ProviderStoreService {
     return record;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, tenantId?: string): Promise<void> {
     if (this.database.enabled) {
-      await this.database.execute('DELETE FROM providers WHERE id = ?', [id]);
+      if (tenantId) {
+        await this.database.execute(
+          'DELETE FROM providers WHERE id = ? AND tenant_id = ?',
+          [id, tenantId],
+        );
+      } else {
+        await this.database.execute(
+          'DELETE FROM providers WHERE id = ?',
+          [id],
+        );
+      }
     } else {
       const providers = (await this.list()).filter(
-        (provider) => provider.id !== id,
+        (provider) =>
+          provider.id !== id ||
+          Boolean(tenantId && provider.tenantId !== tenantId),
       );
       await this.write(providers);
     }
@@ -125,6 +175,21 @@ export class ProviderStoreService {
     } catch {
       return false;
     }
+  }
+
+  private normalize(
+    provider: Partial<ProviderRecord>,
+    tenantId?: string,
+  ): ProviderRecord {
+    const fallbackTenant = this.config.get<string>(
+      'DEFAULT_TENANT_ID',
+      'default',
+    );
+
+    return {
+      ...(provider as ProviderRecord),
+      tenantId: provider.tenantId ?? tenantId ?? fallbackTenant,
+    };
   }
 
   private async write(providers: ProviderRecord[]): Promise<void> {
