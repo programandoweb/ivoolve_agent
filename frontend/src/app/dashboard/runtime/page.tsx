@@ -28,12 +28,29 @@ type QueueStats = {
   delayed: number;
 };
 
+type Metrics = {
+  windowMinutes: number;
+  total: number;
+  completed: number;
+  failed: number;
+  successRate: number;
+  averageDurationMs: number;
+  p95DurationMs: number;
+  alerts: Array<{
+    code: string;
+    severity: "warning" | "critical";
+    message: string;
+  }>;
+};
+
 export default async function RuntimePage() {
-  const [healthResponse, executionsResponse, jobsResponse] = await Promise.all([
-    backendFetch("/health"),
-    authenticatedBackendFetch("/runtime/executions?limit=30"),
-    authenticatedBackendFetch("/runtime/jobs/stats")
-  ]);
+  const [healthResponse, executionsResponse, jobsResponse, metricsResponse] =
+    await Promise.all([
+      backendFetch("/health"),
+      authenticatedBackendFetch("/runtime/executions?limit=30"),
+      authenticatedBackendFetch("/runtime/jobs/stats"),
+      authenticatedBackendFetch("/runtime/metrics")
+    ]);
 
   const health = healthResponse.ok ? await healthResponse.json() : null;
   const executions: ExecutionResponse = executionsResponse.ok
@@ -42,6 +59,18 @@ export default async function RuntimePage() {
   const jobs: QueueStats = jobsResponse.ok
     ? await jobsResponse.json()
     : { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 };
+  const metrics: Metrics = metricsResponse.ok
+    ? await metricsResponse.json()
+    : {
+        windowMinutes: 60,
+        total: 0,
+        completed: 0,
+        failed: 0,
+        successRate: 1,
+        averageDurationMs: 0,
+        p95DurationMs: 0,
+        alerts: []
+      };
 
   return (
     <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
@@ -52,29 +81,55 @@ export default async function RuntimePage() {
         Estado y ejecuciones
       </h1>
       <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-600">
-        Observa infraestructura, cola BullMQ y el recorrido de los mensajes que
-        pasan desde un provider hacia los agentes.
+        Observa infraestructura, BullMQ, persistencia compartida y el recorrido
+        de los mensajes que pasan desde un provider hacia los agentes.
       </p>
 
-      <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      {metrics.alerts.length > 0 && (
+        <div className="mt-6 space-y-2">
+          {metrics.alerts.map((alert) => (
+            <div
+              key={alert.code}
+              className={
+                alert.severity === "critical"
+                  ? "rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800"
+                  : "rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800"
+              }
+            >
+              {alert.message}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <RuntimeCard label="NestJS" value={health?.status ?? "offline"} />
         <RuntimeCard label="Redis" value={health?.redis ?? "unknown"} />
+        <RuntimeCard label="MariaDB" value={health?.database ?? "disabled"} />
         <RuntimeCard label="Jobs activos" value={String(jobs.active)} />
         <RuntimeCard label="Jobs esperando" value={String(jobs.waiting)} />
         <RuntimeCard label="Fallos cola" value={String(jobs.failed)} />
       </div>
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-3">
-        <RuntimeCard label="Ejecuciones" value={String(executions.count)} />
-        <RuntimeCard label="Completadas" value={String(executions.completed)} />
-        <RuntimeCard label="Fallidas" value={String(executions.failed)} />
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <RuntimeCard
+          label={"Éxito " + metrics.windowMinutes + "m"}
+          value={Math.round(metrics.successRate * 100) + "%"}
+        />
+        <RuntimeCard
+          label="Promedio"
+          value={metrics.averageDurationMs + " ms"}
+        />
+        <RuntimeCard label="P95" value={metrics.p95DurationMs + " ms"} />
+        <RuntimeCard label="Completadas" value={String(metrics.completed)} />
+        <RuntimeCard label="Fallidas" value={String(metrics.failed)} />
       </div>
 
       <section className="mt-8 overflow-hidden rounded-3xl border border-zinc-200 bg-white">
         <div className="border-b border-zinc-100 px-5 py-4">
           <h2 className="font-black text-zinc-950">Ejecuciones recientes</h2>
           <p className="mt-1 text-xs text-zinc-500">
-            Persistidas en JSONL para diagnóstico del MVP.
+            MariaDB cuando está configurada; fallback local en desarrollo.
           </p>
         </div>
 
@@ -114,7 +169,7 @@ export default async function RuntimePage() {
                     </td>
                     <td className="px-5 py-4 text-zinc-500">
                       {item.durationMs !== undefined
-                        ? `${item.durationMs} ms`
+                        ? item.durationMs + " ms"
                         : "—"}
                     </td>
                     <td className="px-5 py-4 text-zinc-500">
@@ -155,7 +210,7 @@ function Status({ status }: { status: string }) {
           : "bg-amber-50 text-amber-700";
 
   return (
-    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${className}`}>
+    <span className={"rounded-full px-2.5 py-1 text-xs font-bold " + className}>
       {status}
     </span>
   );
