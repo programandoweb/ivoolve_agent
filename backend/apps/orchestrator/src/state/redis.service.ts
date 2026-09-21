@@ -4,14 +4,12 @@ import Redis from 'ioredis';
 
 import { REDIS_CLIENT } from './redis.constants';
 
-// Un mensaje representa una intervención dentro de la conversación.
 export interface ConversationMessage {
   role: 'user' | 'assistant';
   content: string;
   createdAt: string;
 }
 
-// La sesión es el "estado" que sobrevive después de terminar una petición HTTP.
 export interface AgentSession {
   sessionId: string;
   activeAgent: string;
@@ -27,25 +25,27 @@ export class RedisService implements OnModuleDestroy {
   ) {}
 
   async getSession(sessionId: string): Promise<AgentSession | null> {
-    // Redis devuelve texto; nosotros guardamos el objeto serializado como JSON.
-    const raw = await this.redis.get(this.sessionKey(sessionId));
-
-    if (!raw) {
-      return null;
-    }
-
-    return JSON.parse(raw) as AgentSession;
+    return this.getJson<AgentSession>(this.sessionKey(sessionId));
   }
 
   async saveSession(session: AgentSession): Promise<void> {
-    // TTL evita que sesiones de laboratorio permanezcan para siempre.
     const ttl = Number(this.config.get<string>('SESSION_TTL_SECONDS', '86400'));
+    await this.setJson(this.sessionKey(session.sessionId), session, ttl);
+  }
 
-    await this.redis.setex(
-      this.sessionKey(session.sessionId),
-      ttl,
-      JSON.stringify(session),
-    );
+  // Helpers genéricos para estados temporales de dominio, como el Agent Builder.
+  // Mantienen Redis desacoplado de la estructura concreta del borrador.
+  async getJson<T>(key: string): Promise<T | null> {
+    const raw = await this.redis.get(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  }
+
+  async setJson(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+    await this.redis.setex(key, ttlSeconds, JSON.stringify(value));
+  }
+
+  async delete(key: string): Promise<void> {
+    await this.redis.del(key);
   }
 
   async ping(): Promise<string> {
@@ -53,7 +53,6 @@ export class RedisService implements OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    // Al apagar NestJS cerramos la conexión limpiamente.
     await this.redis.quit();
   }
 
