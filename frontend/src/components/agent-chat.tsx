@@ -49,6 +49,7 @@ type AgentError = {
 
 type AgentChatProps = {
   mode?: "chat" | "builder";
+  agentId?: string;
 };
 
 function getOrCreateSessionId(
