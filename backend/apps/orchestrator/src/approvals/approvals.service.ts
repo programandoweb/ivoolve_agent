@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import type { RowDataPacket } from 'mysql2/promise';
 
+import { AuditService } from '../audit/audit.service';
 import { DatabaseService } from '../database/database.service';
 import { ProvidersService } from '../providers/providers.service';
 import {
@@ -36,6 +37,7 @@ export class ApprovalsService {
     private readonly config: ConfigService,
     private readonly database: DatabaseService,
     private readonly providers: ProvidersService,
+    private readonly audit: AuditService,
   ) {}
 
   requiresApproval(actionName: string): boolean {
@@ -92,6 +94,18 @@ export class ApprovalsService {
       all.push(record);
       await this.writeLocal(all);
     }
+
+    await this.audit.record({
+      tenantId: record.tenantId,
+      actor: record.requestedBy,
+      eventName: 'approval.requested',
+      entityType: 'approval',
+      entityId: record.id,
+      metadata: {
+        agentId: record.agentId,
+        actionName: record.actionName,
+      },
+    });
 
     return record;
   }
@@ -164,10 +178,20 @@ export class ApprovalsService {
         true,
       );
 
+      await this.audit.record({
+        tenantId,
+        actor: decidedBy,
+        eventName: 'approval.approved',
+        entityType: 'approval',
+        entityId: id,
+        metadata: {
+          agentId: record.agentId,
+          actionName: record.actionName,
+        },
+      });
+
       return { approval: approved, result };
     } catch (error) {
-      // Si la acción falla se devuelve a pending para permitir una nueva
-      // decisión humana después de corregir la causa operacional.
       await this.transition(
         { ...record, status: 'processing' },
         'pending',
@@ -175,6 +199,19 @@ export class ApprovalsService {
         undefined,
         false,
       );
+
+      await this.audit.record({
+        tenantId,
+        actor: decidedBy,
+        eventName: 'approval.execution_failed',
+        entityType: 'approval',
+        entityId: id,
+        metadata: {
+          actionName: record.actionName,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+
       throw error;
     }
   }
@@ -193,13 +230,28 @@ export class ApprovalsService {
       );
     }
 
-    return this.transition(
+    const rejected = await this.transition(
       record,
       'rejected',
       decidedBy,
       note,
       true,
     );
+
+    await this.audit.record({
+      tenantId,
+      actor: decidedBy,
+      eventName: 'approval.rejected',
+      entityType: 'approval',
+      entityId: id,
+      metadata: {
+        agentId: record.agentId,
+        actionName: record.actionName,
+        note,
+      },
+    });
+
+    return rejected;
   }
 
   private async execute(record: ApprovalRecord): Promise<unknown> {
