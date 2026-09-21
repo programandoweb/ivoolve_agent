@@ -8,6 +8,9 @@ export async function POST() {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
+    ...(process.env.SESSION_COOKIE_DOMAIN
+      ? { domain: process.env.SESSION_COOKIE_DOMAIN }
+      : {}),
     expires: new Date(0)
   });
 
