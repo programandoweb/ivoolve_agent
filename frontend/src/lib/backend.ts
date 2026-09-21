@@ -1,16 +1,11 @@
-const DEFAULT_BACKEND_URL = "http://localhost:4000";
+import { cookies } from "next/headers";
 
-/**
- * Esta función vive únicamente del lado servidor.
- * Centraliza cómo Next.js habla con NestJS.
- */
+const DEFAULT_BACKEND_URL = "http://localhost:5020";
+
 export function getBackendUrl(): string {
   return (process.env.BACKEND_URL ?? DEFAULT_BACKEND_URL).replace(/\/$/, "");
 }
 
-/**
- * Evita que una llamada hacia NestJS pueda dejar colgado un Route Handler.
- */
 export async function backendFetch(
   path: string,
   init?: RequestInit,
@@ -31,4 +26,19 @@ export async function backendFetch(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export async function authenticatedBackendFetch(
+  path: string,
+  init?: RequestInit,
+): Promise<Response> {
+  const token = cookies().get("ivoolve_session")?.value;
+
+  return backendFetch(path, {
+    ...init,
+    headers: {
+      ...(init?.headers ?? {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
 }

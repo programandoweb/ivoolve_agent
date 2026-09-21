@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server";
 import { authenticatedBackendFetch } from "@/lib/backend";
 
-export const dynamic = "force-dynamic";
-
 export async function GET() {
   try {
-    const response = await authenticatedBackendFetch("/agents");
+    const response = await authenticatedBackendFetch("/auth/me");
     const data = await response.json();
 
     return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      { agents: [], error: "Backend no disponible" },
+      { message: "Backend no disponible." },
       { status: 503 }
     );
   }

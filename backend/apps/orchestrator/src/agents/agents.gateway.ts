@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -7,9 +8,9 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 
+import { AuthService } from '../auth/auth.service';
 import { AgentRuntimeService } from './agent-runtime.service';
 
 interface AgentMessagePayload {
@@ -17,18 +18,25 @@ interface AgentMessagePayload {
   message: string;
 }
 
-/**
- * Este Gateway es el "hilo" persistente entre el navegador y NestJS.
- *
- * A diferencia de REST, el cliente abre la conexión una vez y luego envía
- * múltiples eventos sobre el mismo socket.
- */
+function getCookieValue(cookieHeader: string | undefined, name: string) {
+  if (!cookieHeader) {
+    return undefined;
+  }
+
+  const prefix = `${name}=`;
+  const cookie = cookieHeader
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix));
+
+  return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : undefined;
+}
+
 @WebSocketGateway({
   namespace: '/agents',
   cors: {
-    // Para esta fase didáctica aceptamos el origen configurado por el navegador.
-    // En producción se endurecerá con lista explícita de orígenes.
-    origin: true,
+    origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:5021',
+    credentials: true,
   },
   transports: ['websocket'],
 })
@@ -40,16 +48,41 @@ export class AgentsGateway
   @WebSocketServer()
   server!: Server;
 
-  constructor(private readonly runtime: AgentRuntimeService) {}
+  constructor(
+    private readonly runtime: AgentRuntimeService,
+    private readonly auth: AuthService,
+  ) {}
 
-  handleConnection(client: Socket): void {
-    // Cada pestaña del navegador obtiene su propio socket.id.
-    this.logger.log(`Socket conectado: ${client.id}`);
+  async handleConnection(client: Socket): Promise<void> {
+    // La cookie HttpOnly creada por Next.js también viaja al handshake WebSocket.
+    const token = getCookieValue(
+      client.handshake.headers.cookie,
+      'ivoolve_session',
+    );
 
-    client.emit('agent:connected', {
-      socketId: client.id,
-      namespace: '/agents',
-    });
+    if (!token) {
+      client.emit('agent:error', { message: 'Autenticación requerida.' });
+      client.disconnect(true);
+      return;
+    }
+
+    try {
+      const user = await this.auth.verifyToken(token);
+      client.data.user = user;
+
+      this.logger.log(
+        `Socket autenticado: ${client.id} (${user.username})`,
+      );
+
+      client.emit('agent:connected', {
+        socketId: client.id,
+        namespace: '/agents',
+        user,
+      });
+    } catch {
+      client.emit('agent:error', { message: 'Sesión inválida o expirada.' });
+      client.disconnect(true);
+    }
   }
 
   handleDisconnect(client: Socket): void {
@@ -61,6 +94,11 @@ export class AgentsGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: AgentMessagePayload,
   ): Promise<void> {
+    if (!client.data.user) {
+      client.emit('agent:error', { message: 'Autenticación requerida.' });
+      return;
+    }
+
     const sessionId = payload?.sessionId?.trim();
     const message = payload?.message?.trim();
 
@@ -71,19 +109,13 @@ export class AgentsGateway
       return;
     }
 
-    // Avisamos al mismo cliente que Jorge empezó a procesar.
-    // Más adelante este evento podrá incluir pasos, herramientas y subagentes.
     client.emit('agent:processing', {
       sessionId,
       agent: 'jorge',
     });
 
     try {
-      // La lógica de negocio del agente no cambia.
-      // Solo estamos cambiando el transporte: REST -> Socket.IO.
       const result = await this.runtime.chat(sessionId, message);
-
-      // La respuesta viaja de regreso por el mismo hilo socket.
       client.emit('agent:response', result);
     } catch (error) {
       const detail =

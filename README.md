@@ -1,45 +1,85 @@
 # Ivoolve Agent
 
-Monorepo para construir y estudiar un ecosistema de agentes de IA.
+Monorepo para construir, estudiar y gestionar agentes de IA.
 
-## Servicios
+## Puertos
 
-| Servicio | Puerto |
-| --- | ---: |
-| NestJS + Socket.IO | 5020 |
-| Next.js | 5021 |
-| Redis | 6379 |
-| LM Studio | 1234 |
+- NestJS + Socket.IO: 5020
+- Next.js: 5021
+- Redis: 6379
+- LM Studio: 1234
 
-## Conversación
+## Dashboard seguro
+
+Acceso:
 
 ```text
-Next.js :5021
-    |
-    | Socket.IO /agents
-    v
-NestJS :5020
-    |
-    +--> Jorge
-    +--> Redis
-    +--> LLM
+http://localhost:5021/login
 ```
 
-La conversación ya no utiliza POST REST. HTTP permanece para health y consultas auxiliares.
+Antes del primer login configura el backend.
 
-## Inicio en Windows
+### 1. Instala dependencias
+
+```powershell
+cd D:\ivoolve_agent\backend
+npm install
+```
+
+### 2. Genera el hash de tu contraseña
+
+```powershell
+npm run auth:hash -- "TuClaveSegura"
+```
+
+### 3. Genera un secreto JWT
+
+```powershell
+npm run auth:secret
+```
+
+### 4. Coloca ambos valores en backend/.env
+
+```env
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD_HASH=<hash bcrypt generado>
+JWT_SECRET=<secreto generado>
+JWT_EXPIRES_IN=8h
+```
+
+No versiones el archivo `.env`.
+
+## Inicio
 
 ```bat
-D:
-cd D:\ivoolve_agent
-iniciar.bat
+D:\ivoolve_agent\iniciar.bat
 ```
 
-El script inicia Redis, backend y frontend.
+Luego abre:
 
-## Sistema documental
+```text
+http://localhost:5021
+```
 
-- Backend: `backend/docs/`
-- Frontend: `frontend/docs/`
+## Seguridad incluida
 
-Toda decisión y avance relevante debe quedar versionado.
+- contraseña almacenada únicamente como hash bcrypt;
+- JWT firmado con expiración;
+- cookie HttpOnly;
+- SameSite=Lax;
+- cookie Secure automáticamente en producción;
+- REST de gestión protegido;
+- Socket.IO autenticado durante el handshake;
+- secretos exclusivamente por variables de entorno.
+
+## Dashboard
+
+Rutas iniciales:
+
+- `/dashboard` — resumen;
+- `/dashboard/agents` — agentes registrados;
+- `/dashboard/chat` — conversación Socket.IO;
+- `/dashboard/runtime` — estado del runtime;
+- `/dashboard/security` — controles de seguridad activos.
+
+Esta primera fase usa un único administrador bootstrap. La evolución a múltiples usuarios y roles se hará sobre almacenamiento durable, no sobre Redis.

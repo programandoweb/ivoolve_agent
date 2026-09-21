@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "Monorepo didáctico multiagente con NestJS, Redis, Socket.IO y BullMQ",
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "build": "nest build orchestrator",
     "start": "node dist/apps/orchestrator/main.js",
@@ -12,7 +14,8 @@
     "test": "jest",
     "redis:up": "docker compose up -d redis",
     "redis:down": "docker compose down",
-    "setup:windows": "powershell -ExecutionPolicy Bypass -File ./scripts/setup.ps1"
+    "setup:windows": "powershell -ExecutionPolicy Bypass -File ./scripts/setup.ps1",
+    "auth:secret": "node scripts/generate-jwt-secret.mjs"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.0",

@@ -95,6 +95,7 @@ export function AgentChat() {
       `${process.env.NEXT_PUBLIC_SOCKET_URL ?? "http://localhost:5020"}/agents`,
       {
         transports: ["websocket"],
+        withCredentials: true,
         reconnection: true,
         reconnectionAttempts: Infinity,
         reconnectionDelay: 1000

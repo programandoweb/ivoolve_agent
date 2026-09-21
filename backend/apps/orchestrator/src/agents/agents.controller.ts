@@ -1,17 +1,25 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 
+import { AuthGuard } from '../auth/auth.guard';
 import { AgentRegistryService } from './agent-registry.service';
 
 @Controller('agents')
+@UseGuards(AuthGuard)
 export class AgentsController {
   constructor(private readonly registry: AgentRegistryService) {}
 
   @Get()
   list() {
-    // REST queda únicamente para información auxiliar.
-    // La conversación con los agentes ocurre por Socket.IO.
+    const definitions = this.registry.list();
+
     return {
-      agents: this.registry.list().map((agent) => agent.id),
+      // Se conserva el contrato simple usado por el chat.
+      agents: definitions.map((agent) => agent.id),
+      // details alimenta el dashboard sin romper consumidores existentes.
+      details: definitions.map((agent) => ({
+        id: agent.id,
+        fallback: agent.id === 'jorge',
+      })),
       fallback: 'jorge',
       transport: 'socket.io',
       namespace: '/agents',
