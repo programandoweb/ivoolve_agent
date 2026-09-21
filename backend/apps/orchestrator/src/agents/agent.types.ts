@@ -1,3 +1,5 @@
+import type { UserRole } from '../auth/auth.types';
+
 export type AgentSource = 'core' | 'managed';
 
 export interface AgentMetadata {
@@ -8,8 +10,6 @@ export interface AgentMetadata {
   executionMode?: string;
 }
 
-// Representación uniforme de cualquier agente cargado por el runtime.
-// Los agentes core nacen de Markdown; los gestionados nacen del Agent Builder.
 export interface AgentDefinition {
   id: string;
   prompt: string;
@@ -17,4 +17,11 @@ export interface AgentDefinition {
   tools: string;
   source: AgentSource;
   metadata?: AgentMetadata;
+}
+
+export interface RuntimeInvocationContext {
+  source: 'interactive' | 'provider' | 'delegation';
+  actorRole?: UserRole;
+  actorId?: string;
+  tenantId?: string;
 }
