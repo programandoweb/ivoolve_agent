@@ -54,10 +54,11 @@ describe('ProviderRoutingService', () => {
     );
   });
 
-  it('ejecuta directamente el único agente autorizado y responde por el provider', async () => {
+  it('ejecuta el único agente autorizado dentro del tenant y responde por el provider', async () => {
     redis.claim.mockResolvedValue(true);
     providers.get.mockResolvedValue({
       id: 'provider-1',
+      tenantId: 'tenant-a',
       name: 'Ventas',
       agentIds: ['sales'],
     });
@@ -79,18 +80,24 @@ describe('ProviderRoutingService', () => {
     await service.handle(message);
 
     expect(runtime.chatAsAgent).toHaveBeenCalledWith(
-      'provider:provider-1:contact:573001112233@s.whatsapp.net',
+      'tenant:tenant-a:provider:provider-1:contact:573001112233@s.whatsapp.net',
       message.text,
       'sales',
+      {
+        source: 'provider',
+        tenantId: 'tenant-a',
+      },
     );
     expect(providers.sendText).toHaveBeenCalledWith(
       'provider-1',
       'sales',
       message.sender,
       'El precio es...',
+      'tenant-a',
     );
     expect(executions.append).toHaveBeenCalledWith(
       expect.objectContaining({
+        tenantId: 'tenant-a',
         status: 'completed',
         agentId: 'sales',
       }),
