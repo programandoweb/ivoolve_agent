@@ -9,6 +9,7 @@ export type ProviderStatus =
 
 export interface ProviderRecord {
   id: string;
+  tenantId: string;
   name: string;
   type: ProviderType;
   status: ProviderStatus;
