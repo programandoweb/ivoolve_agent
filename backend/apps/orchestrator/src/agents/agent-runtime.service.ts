@@ -5,6 +5,7 @@ import { LlmMessage } from '../llm/llm.types';
 import { AgentSession, RedisService } from '../state/redis.service';
 import { ToolRegistryService } from '../tools/tool-registry.service';
 import { AgentRegistryService } from './agent-registry.service';
+import { RuntimeInvocationContext } from './agent.types';
 
 interface DelegationEnvelope {
   delegate: string;
@@ -20,17 +21,27 @@ export class AgentRuntimeService {
     private readonly tools: ToolRegistryService,
   ) {}
 
-  async chat(sessionId: string, userMessage: string) {
+  async chat(
+    sessionId: string,
+    userMessage: string,
+    context: RuntimeInvocationContext = { source: 'interactive' },
+  ) {
     const existing = await this.redis.getSession(sessionId);
     const activeAgent = existing?.activeAgent ?? 'jorge';
 
-    return this.chatAsAgent(sessionId, userMessage, activeAgent);
+    return this.chatAsAgent(
+      sessionId,
+      userMessage,
+      activeAgent,
+      context,
+    );
   }
 
   async chatAsAgent(
     sessionId: string,
     userMessage: string,
     agentId: string,
+    context: RuntimeInvocationContext = { source: 'interactive' },
   ) {
     const agent = this.registry.get(agentId);
 
@@ -106,12 +117,17 @@ export class AgentRuntimeService {
 
     let answer = await this.llm.complete(messages);
 
-    // Bucle acotado para tools: evita ejecuciones infinitas por respuestas mal formadas.
     for (let iteration = 0; iteration < 3; iteration += 1) {
       const call = this.tools.parse(answer);
       if (!call) break;
 
-      const result = await this.tools.execute(call, { agentId: agent.id });
+      const result = await this.tools.execute(call, {
+        agentId: agent.id,
+        source: context.source,
+        actorRole: context.actorRole,
+        actorId: context.actorId,
+        tenantId: context.tenantId,
+      });
 
       messages.push(
         { role: 'assistant', content: answer },
@@ -129,8 +145,6 @@ export class AgentRuntimeService {
       answer = await this.llm.complete(messages);
     }
 
-    // Jorge puede entregar el turno a un subagente. Se usa una sesión hija para
-    // no contaminar la conversación principal con memoria interna de delegación.
     if (agent.id === 'jorge') {
       const delegation = this.parseDelegation(answer);
 
@@ -143,6 +157,10 @@ export class AgentRuntimeService {
           `${sessionId}:delegate:${delegation.delegate}`,
           delegation.message?.trim() || userMessage,
           delegation.delegate,
+          {
+            ...context,
+            source: 'delegation',
+          },
         );
         answer = delegated.answer;
       }
