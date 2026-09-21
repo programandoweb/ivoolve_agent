@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 
 import { AgentRegistryService } from '../agents/agent-registry.service';
@@ -16,9 +11,8 @@ import { ExecutionLogStore } from './execution-log.store';
 import { RuntimeExecutionRecord } from './execution-log.types';
 
 @Injectable()
-export class ProviderRoutingService implements OnModuleInit, OnModuleDestroy {
+export class ProviderRoutingService {
   private readonly logger = new Logger(ProviderRoutingService.name);
-  private unsubscribe?: () => void;
 
   constructor(
     private readonly providers: ProvidersService,
@@ -29,25 +23,13 @@ export class ProviderRoutingService implements OnModuleInit, OnModuleDestroy {
     private readonly executions: ExecutionLogStore,
   ) {}
 
-  onModuleInit(): void {
-    this.unsubscribe = this.providers.onIncomingMessage((message) =>
-      this.handle(message),
-    );
-  }
-
-  onModuleDestroy(): void {
-    this.unsubscribe?.();
-  }
-
   async handle(message: NormalizedProviderMessage): Promise<void> {
     const claimed = await this.redis.claim(
       `ivoolve:provider-message:${message.providerId}:${message.messageId}`,
       86_400,
     );
 
-    if (!claimed) {
-      return;
-    }
+    if (!claimed) return;
 
     const started = Date.now();
     const record: RuntimeExecutionRecord = {
@@ -117,6 +99,9 @@ export class ProviderRoutingService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(
         `Falló routing del mensaje ${message.messageId}: ${detail}`,
       );
+
+      // Se relanza para que BullMQ aplique retry/backoff.
+      throw error;
     }
   }
 
