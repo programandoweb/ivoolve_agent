@@ -7,6 +7,7 @@ import { HealthModule } from './health/health.module';
 import { LlmModule } from './llm/llm.module';
 import { ProvidersModule } from './providers/providers.module';
 import { AgentQueueModule } from './queue/agent-queue.module';
+import { RuntimeModule } from './runtime/runtime.module';
 import { RedisModule } from './state/redis.module';
 
 @Module({
@@ -15,8 +16,9 @@ import { RedisModule } from './state/redis.module';
     AuthModule,
     RedisModule,
     LlmModule,
-    AgentsModule,
     ProvidersModule,
+    AgentsModule,
+    RuntimeModule,
     AgentQueueModule,
     HealthModule,
   ],
