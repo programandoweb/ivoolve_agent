@@ -65,7 +65,7 @@ function getOrCreateSessionId(mode: "chat" | "builder"): string {
   return created;
 }
 
-export function AgentChat({ mode = "chat" }: AgentChatProps) {
+export function AgentChat({ mode = "chat", agentId }: AgentChatProps) {
   const socketRef = useRef<Socket | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -219,7 +219,7 @@ export function AgentChat({ mode = "chat" }: AgentChatProps) {
               <Bot className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <p className="font-semibold text-zinc-950">Jorge</p>
+              <p className="font-semibold text-zinc-950">{agentId ?? "Jorge"}</p>
               <p className="truncate text-xs text-zinc-500 sm:text-sm">
                 {isBuilder
                   ? "Agent Builder · creación guiada"
