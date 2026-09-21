@@ -70,7 +70,7 @@ export class ToolRegistryService {
   ): Promise<unknown> {
     switch (call.tool) {
       case 'provider.list': {
-        const providers = await this.providers.list();
+        const providers = await this.providers.list(context.tenantId);
         return providers
           .filter((provider) => provider.agentIds.includes(context.agentId))
           .map((provider) => ({
@@ -83,8 +83,6 @@ export class ToolRegistryService {
       }
 
       case 'provider.send_message': {
-        // El rol del humano se conserva incluso si Jorge delega a otro agente.
-        // Los turnos autónomos de providers no traen actorRole y no se bloquean.
         if (context.actorRole === 'viewer') {
           throw new ForbiddenException(
             'El rol viewer no puede ejecutar tools de escritura.',
@@ -100,6 +98,7 @@ export class ToolRegistryService {
           context.agentId,
           recipient,
           text,
+          context.tenantId,
         );
       }
 
