@@ -18,6 +18,7 @@ import { AgentRuntimeService } from './agent-runtime.service';
 interface AgentMessagePayload {
   sessionId: string;
   message: string;
+  agentId?: string;
 }
 
 function getCookieValue(cookieHeader: string | undefined, name: string) {
@@ -142,21 +143,30 @@ export class AgentsGateway
     // mientras Redis queda aislado por tenant.
     const runtimeSessionId = `tenant:${user.tenantId}:${sessionId}`;
 
+    const requestedAgent = payload?.agentId?.trim().toLowerCase();
+
     client.emit(`${eventPrefix}:processing`, {
       sessionId,
-      agent: 'jorge',
+      agent: requestedAgent || 'jorge',
     });
 
     try {
       const result =
         mode === 'builder'
           ? await this.builder.chat(runtimeSessionId, message)
-          : await this.runtime.chat(runtimeSessionId, message, {
-              source: 'interactive',
-              actorId: user.id,
-              actorRole: user.role,
-              tenantId: user.tenantId,
-            });
+          : requestedAgent
+            ? await this.runtime.chatAsAgent(runtimeSessionId, message, requestedAgent, {
+                source: 'interactive',
+                actorId: user.id,
+                actorRole: user.role,
+                tenantId: user.tenantId,
+              })
+            : await this.runtime.chat(runtimeSessionId, message, {
+                source: 'interactive',
+                actorId: user.id,
+                actorRole: user.role,
+                tenantId: user.tenantId,
+              });
 
       client.emit(`${eventPrefix}:response`, {
         ...result,
