@@ -65,19 +65,26 @@ export class ProvidersService implements OnModuleInit {
     return () => this.messageHandlers.delete(handler);
   }
 
-  list(): Promise<ProviderRecord[]> {
-    return this.store.list();
+  list(tenantId?: string): Promise<ProviderRecord[]> {
+    return this.store.list(tenantId);
   }
 
-  async get(id: string): Promise<ProviderConnectionView> {
-    const provider = await this.requireProvider(id);
+  async get(
+    id: string,
+    tenantId?: string,
+  ): Promise<ProviderConnectionView> {
+    const provider = await this.requireProvider(id, tenantId);
     return this.withRuntime(provider);
   }
 
-  async create(dto: CreateProviderDto): Promise<ProviderRecord> {
+  async create(
+    dto: CreateProviderDto,
+    tenantId = 'default',
+  ): Promise<ProviderRecord> {
     const now = new Date().toISOString();
     const provider: ProviderRecord = {
       id: randomUUID(),
+      tenantId,
       name: dto.name.trim(),
       type: dto.type,
       status: 'disconnected',
@@ -90,8 +97,12 @@ export class ProvidersService implements OnModuleInit {
     return this.store.save(provider);
   }
 
-  async update(id: string, dto: UpdateProviderDto): Promise<ProviderRecord> {
-    const current = await this.requireProvider(id);
+  async update(
+    id: string,
+    dto: UpdateProviderDto,
+    tenantId?: string,
+  ): Promise<ProviderRecord> {
+    const current = await this.requireProvider(id, tenantId);
 
     const updated: ProviderRecord = {
       ...current,
@@ -108,14 +119,17 @@ export class ProvidersService implements OnModuleInit {
     return this.store.save(updated);
   }
 
-  async remove(id: string): Promise<void> {
-    await this.requireProvider(id);
-    await this.disconnect(id, false);
-    await this.store.remove(id);
+  async remove(id: string, tenantId?: string): Promise<void> {
+    await this.requireProvider(id, tenantId);
+    await this.disconnect(id, false, tenantId);
+    await this.store.remove(id, tenantId);
   }
 
-  async connect(id: string): Promise<ProviderConnectionView> {
-    const provider = await this.requireProvider(id);
+  async connect(
+    id: string,
+    tenantId?: string,
+  ): Promise<ProviderConnectionView> {
+    const provider = await this.requireProvider(id, tenantId);
 
     if (provider.type !== 'whatsapp_baileys') {
       throw new BadRequestException(
@@ -243,8 +257,9 @@ export class ProvidersService implements OnModuleInit {
     agentId: string,
     recipient: string,
     text: string,
+    tenantId?: string,
   ): Promise<{ messageId?: string }> {
-    const provider = await this.requireProvider(providerId);
+    const provider = await this.requireProvider(providerId, tenantId);
 
     if (!provider.agentIds.includes(agentId)) {
       throw new ConflictException(
@@ -270,8 +285,9 @@ export class ProvidersService implements OnModuleInit {
   async disconnect(
     id: string,
     preserveCredentials = true,
+    tenantId?: string,
   ): Promise<ProviderConnectionView> {
-    const provider = await this.requireProvider(id);
+    const provider = await this.requireProvider(id, tenantId);
     const timer = this.reconnectTimers.get(id);
     if (timer) {
       clearTimeout(timer);
@@ -302,8 +318,11 @@ export class ProvidersService implements OnModuleInit {
     return this.withRuntime(updated);
   }
 
-  async connection(id: string): Promise<ProviderConnectionView> {
-    const provider = await this.requireProvider(id);
+  async connection(
+    id: string,
+    tenantId?: string,
+  ): Promise<ProviderConnectionView> {
+    const provider = await this.requireProvider(id, tenantId);
     return this.withRuntime(provider);
   }
 
@@ -364,8 +383,11 @@ export class ProvidersService implements OnModuleInit {
     };
   }
 
-  private async requireProvider(id: string): Promise<ProviderRecord> {
-    const provider = await this.store.get(id);
+  private async requireProvider(
+    id: string,
+    tenantId?: string,
+  ): Promise<ProviderRecord> {
+    const provider = await this.store.get(id, tenantId);
     if (!provider) {
       throw new NotFoundException(`Provider "${id}" no encontrado.`);
     }
