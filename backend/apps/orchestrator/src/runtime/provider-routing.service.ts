@@ -31,6 +31,7 @@ export class ProviderRoutingService {
     if (!claimed) return;
 
     const started = Date.now();
+    let tenantId: string | undefined;
     const record: RuntimeExecutionRecord = {
       id: randomUUID(),
       providerId: message.providerId,
@@ -43,11 +44,13 @@ export class ProviderRoutingService {
 
     try {
       const provider = await this.providers.get(message.providerId);
+      tenantId = provider.tenantId;
       const agentId = await this.selectAgent(provider.agentIds, message.text);
 
       if (!agentId) {
         await this.executions.append({
           ...record,
+          tenantId,
           status: 'ignored',
           error: 'Provider sin agentes asignados.',
           finishedAt: new Date().toISOString(),
@@ -58,19 +61,20 @@ export class ProviderRoutingService {
 
       const processing: RuntimeExecutionRecord = {
         ...record,
+        tenantId,
         agentId,
         status: 'processing',
       };
 
       const sessionId =
-        `provider:${message.providerId}:contact:${message.conversationId}`;
+        `tenant:${tenantId}:provider:${message.providerId}:contact:${message.conversationId}`;
       const result = await this.runtime.chatAsAgent(
         sessionId,
         message.text,
         agentId,
         {
           source: 'provider',
-          tenantId: provider.tenantId,
+          tenantId,
         },
       );
 
@@ -79,6 +83,7 @@ export class ProviderRoutingService {
         agentId,
         message.sender,
         result.answer,
+        tenantId,
       );
 
       await this.executions.append({
@@ -93,6 +98,7 @@ export class ProviderRoutingService {
 
       await this.executions.append({
         ...record,
+        tenantId,
         status: 'failed',
         error: detail.slice(0, 1000),
         finishedAt: new Date().toISOString(),
