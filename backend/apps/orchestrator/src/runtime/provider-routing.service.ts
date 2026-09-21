@@ -24,10 +24,9 @@ export class ProviderRoutingService {
   ) {}
 
   async handle(message: NormalizedProviderMessage): Promise<void> {
-    const claimed = await this.redis.claim(
-      `ivoolve:provider-message:${message.providerId}:${message.messageId}`,
-      86_400,
-    );
+    const claimKey =
+      `ivoolve:provider-message:${message.providerId}:${message.messageId}`;
+    const claimed = await this.redis.claim(claimKey, 86_400);
 
     if (!claimed) return;
 
@@ -96,11 +95,14 @@ export class ProviderRoutingService {
         durationMs: Date.now() - started,
       });
 
+      // El claim solo queda retenido cuando el mensaje terminó o se ignoró.
+      // Si el turno falló, liberarlo permite que BullMQ reintente el mismo job.
+      await this.redis.delete(claimKey);
+
       this.logger.error(
         `Falló routing del mensaje ${message.messageId}: ${detail}`,
       );
 
-      // Se relanza para que BullMQ aplique retry/backoff.
       throw error;
     }
   }
