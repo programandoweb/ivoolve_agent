@@ -20,6 +20,11 @@ import { ManagedAgentStoreService } from './managed-agent-store.service';
     AgentBuilderService,
     AgentsGateway,
   ],
-  exports: [AgentRegistryService, AgentRuntimeService, AgentBuilderService],
+  exports: [
+    ManagedAgentStoreService,
+    AgentRegistryService,
+    AgentRuntimeService,
+    AgentBuilderService,
+  ],
 })
 export class AgentsModule {}
