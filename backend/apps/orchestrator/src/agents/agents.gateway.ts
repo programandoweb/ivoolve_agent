@@ -11,6 +11,7 @@ import {
 import { Server, Socket } from 'socket.io';
 
 import { AuthService } from '../auth/auth.service';
+import { AuthenticatedUser } from '../auth/auth.types';
 import { AgentBuilderService } from './agent-builder.service';
 import { AgentRuntimeService } from './agent-runtime.service';
 
@@ -68,14 +69,18 @@ export class AgentsGateway
     try {
       const user = await this.auth.verifyToken(token);
       client.data.user = user;
-      this.logger.log(`Socket autenticado: ${client.id} (${user.username})`);
+      this.logger.log(
+        `Socket autenticado: ${client.id} (${user.username}/${user.tenantId})`,
+      );
       client.emit('agent:connected', {
         socketId: client.id,
         namespace: '/agents',
         user,
       });
     } catch {
-      client.emit('agent:error', { message: 'Sesión inválida o expirada.' });
+      client.emit('agent:error', {
+        message: 'Sesión inválida o expirada.',
+      });
       client.disconnect(true);
     }
   }
@@ -106,10 +111,19 @@ export class AgentsGateway
     mode: 'chat' | 'builder',
   ): Promise<void> {
     const eventPrefix = mode === 'builder' ? 'agent-builder' : 'agent';
+    const user = client.data.user as AuthenticatedUser | undefined;
 
-    if (!client.data.user) {
+    if (!user) {
       client.emit(`${eventPrefix}:error`, {
         message: 'Autenticación requerida.',
+      });
+      return;
+    }
+
+    if (mode === 'builder' && user.role !== 'admin') {
+      client.emit(`${eventPrefix}:error`, {
+        message:
+          'Solo un administrador puede crear capacidades globales de agentes.',
       });
       return;
     }
@@ -124,6 +138,10 @@ export class AgentsGateway
       return;
     }
 
+    // La sesión visible al navegador puede mantenerse corta/aleatoria,
+    // mientras Redis queda aislado por tenant.
+    const runtimeSessionId = `tenant:${user.tenantId}:${sessionId}`;
+
     client.emit(`${eventPrefix}:processing`, {
       sessionId,
       agent: 'jorge',
@@ -132,16 +150,24 @@ export class AgentsGateway
     try {
       const result =
         mode === 'builder'
-          ? await this.builder.chat(sessionId, message)
-          : await this.runtime.chat(sessionId, message);
+          ? await this.builder.chat(runtimeSessionId, message)
+          : await this.runtime.chat(runtimeSessionId, message, {
+              source: 'interactive',
+              actorId: user.id,
+              actorRole: user.role,
+              tenantId: user.tenantId,
+            });
 
-      client.emit(`${eventPrefix}:response`, result);
+      client.emit(`${eventPrefix}:response`, {
+        ...result,
+        sessionId,
+      });
     } catch (error) {
       const detail =
         error instanceof Error ? error.message : 'Error desconocido';
 
       this.logger.error(
-        `Error procesando sesión ${sessionId}: ${detail}`,
+        `Error procesando sesión ${runtimeSessionId}: ${detail}`,
       );
 
       client.emit(`${eventPrefix}:error`, {
