@@ -1,12 +1,23 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { AgentChat } from "@/components/agent-chat";
+import { authenticatedBackendFetch } from "@/lib/backend";
 
-export default function CreateAgentPage() {
+export default async function CreateAgentPage() {
+  const response = await authenticatedBackendFetch("/auth/me");
+
+  if (!response.ok) redirect("/login");
+
+  const data = (await response.json()) as {
+    user?: { role?: string };
+  };
+
+  if (data.user?.role !== "admin") redirect("/dashboard/agents");
+
   return (
     <div className="flex h-dvh min-h-0 w-full flex-col overflow-hidden px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-5">
-      {/* Cabecera compacta: ocupa solo lo necesario y deja el resto al chat. */}
       <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -33,8 +44,6 @@ export default function CreateAgentPage() {
         </p>
       </div>
 
-      {/* min-h-0 es clave para que el hijo flex pueda usar el alto restante sin
-          aumentar el documento ni generar scroll vertical en la página. */}
       <div className="min-h-0 flex-1">
         <AgentChat mode="builder" />
       </div>
