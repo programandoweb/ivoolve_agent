@@ -62,7 +62,7 @@ const EMPTY_FORM: FormState = {
   autoConnect: true
 };
 
-export function ProvidersManager() {
+export function ProvidersManager({ role }: { role: "admin" | "operator" | "viewer" }) {\n  const canMutate = role === "admin" || role === "operator";\n  const canDelete = role === "admin";
   const [providers, setProviders] = useState<Provider[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -288,14 +288,16 @@ export function ProvidersManager() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={openCreate}
-          className="inline-flex items-center gap-2 rounded-2xl bg-violet-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-violet-200 transition hover:bg-violet-700"
-        >
-          <Plus className="h-4 w-4" />
-          Nuevo provider
-        </button>
+        {canMutate && (
+          <button
+            type="button"
+            onClick={openCreate}
+            className="inline-flex items-center gap-2 rounded-2xl bg-violet-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-violet-200 transition hover:bg-violet-700"
+          >
+            <Plus className="h-4 w-4" />
+            Nuevo provider
+          </button>
+        )}
       </div>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
@@ -407,44 +409,48 @@ export function ProvidersManager() {
                 </p>
               )}
 
-              <div className="mt-5 flex flex-wrap gap-2 border-t border-zinc-100 pt-4">
-                {provider.status === "connected" ? (
-                  <button
-                    type="button"
-                    onClick={() => void disconnectProvider(provider)}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-zinc-950 px-3 py-2.5 text-xs font-bold text-white"
-                  >
-                    <CircleOff className="h-4 w-4" />
-                    Desconectar
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => void connectProvider(provider)}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-bold text-white"
-                  >
-                    <QrCode className="h-4 w-4" />
-                    Conectar / QR
-                  </button>
-                )}
+              {canMutate && (
+                <div className="mt-5 flex flex-wrap gap-2 border-t border-zinc-100 pt-4">
+                  {provider.status === "connected" ? (
+                    <button
+                      type="button"
+                      onClick={() => void disconnectProvider(provider)}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-zinc-950 px-3 py-2.5 text-xs font-bold text-white"
+                    >
+                      <CircleOff className="h-4 w-4" />
+                      Desconectar
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void connectProvider(provider)}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-bold text-white"
+                    >
+                      <QrCode className="h-4 w-4" />
+                      Conectar / QR
+                    </button>
+                  )}
 
-                <button
-                  type="button"
-                  onClick={() => openEdit(provider)}
-                  className="rounded-xl border border-zinc-200 p-2.5 text-zinc-600 transition hover:bg-zinc-50"
-                  aria-label="Editar provider"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void removeProvider(provider)}
-                  className="rounded-xl border border-rose-100 p-2.5 text-rose-600 transition hover:bg-rose-50"
-                  aria-label="Eliminar provider"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => openEdit(provider)}
+                    className="rounded-xl border border-zinc-200 p-2.5 text-zinc-600 transition hover:bg-zinc-50"
+                    aria-label="Editar provider"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => void removeProvider(provider)}
+                      className="rounded-xl border border-rose-100 p-2.5 text-rose-600 transition hover:bg-rose-50"
+                      aria-label="Eliminar provider"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              )}
             </article>
           ))}
         </div>
