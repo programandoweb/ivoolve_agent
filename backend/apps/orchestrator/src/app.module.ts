@@ -6,6 +6,7 @@ import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { IvoolveOpsIntegrationModule } from './integrations/ivoolveops/ivoolveops-integration.module';
 import { LlmModule } from './llm/llm.module';
 import { ProvidersModule } from './providers/providers.module';
 import { AgentQueueModule } from './queue/agent-queue.module';
@@ -25,6 +26,7 @@ import { RedisModule } from './state/redis.module';
     RuntimeModule,
     AgentQueueModule,
     HealthModule,
+    IvoolveOpsIntegrationModule,
   ],
 })
 export class AppModule {}
