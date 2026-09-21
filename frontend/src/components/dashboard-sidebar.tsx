@@ -1,7 +1,9 @@
 import Link from "next/link";
 import {
   Bot,
+  CheckSquare2,
   Gauge,
+  KeyRound,
   MessageSquareText,
   Network,
   PlugZap,
@@ -9,7 +11,9 @@ import {
 } from "lucide-react";
 import { LogoutButton } from "./logout-button";
 
-const items = [
+type UserRole = "admin" | "operator" | "viewer";
+
+const commonItems = [
   { href: "/dashboard", label: "Resumen", icon: Gauge },
   { href: "/dashboard/agents", label: "Agentes", icon: Bot },
   { href: "/dashboard/providers", label: "Providers", icon: PlugZap },
@@ -18,7 +22,14 @@ const items = [
   { href: "/dashboard/security", label: "Seguridad", icon: ShieldCheck }
 ];
 
-export function DashboardSidebar() {
+const adminItems = [
+  { href: "/dashboard/approvals", label: "Aprobaciones", icon: CheckSquare2 },
+  { href: "/dashboard/access", label: "Accesos", icon: KeyRound }
+];
+
+export function DashboardSidebar({ role }: { role: UserRole }) {
+  const items = role === "admin" ? [...commonItems, ...adminItems] : commonItems;
+
   return (
     <aside className="flex min-h-screen w-64 flex-col border-r border-zinc-200 bg-white p-4">
       <div className="mb-8 flex items-center gap-3 px-2 py-2">
@@ -27,7 +38,7 @@ export function DashboardSidebar() {
         </div>
         <div>
           <p className="font-black tracking-tight text-zinc-950">Ivoolve Agent</p>
-          <p className="text-xs text-zinc-500">Control Center</p>
+          <p className="text-xs text-zinc-500">Control Center · {role}</p>
         </div>
       </div>
 
