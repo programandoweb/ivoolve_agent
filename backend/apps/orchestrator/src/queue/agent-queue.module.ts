@@ -2,31 +2,49 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { AuthModule } from '../auth/auth.module';
+import { ProvidersModule } from '../providers/providers.module';
+import { RuntimeModule } from '../runtime/runtime.module';
+import {
+  AGENT_JOBS_QUEUE,
+  AgentJobsService,
+} from './agent-jobs.service';
+import { AgentJobsController } from './agent-jobs.controller';
+import { ProviderMessageQueueBridge } from './provider-message.bridge';
+import { ProviderMessageProcessor } from './provider-message.processor';
+
 @Module({
   imports: [
-    // BullMQ usa Redis, pero mantiene una conexión orientada específicamente a colas.
+    AuthModule,
+    ProvidersModule,
+    RuntimeModule,
     BullModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        connection: {
-          // ioredis/BullMQ aceptan host y puerto; extraemos ambos desde REDIS_URL.
-          host: new URL(
-            config.get<string>('REDIS_URL', 'redis://localhost:6379'),
-          ).hostname,
-          port: Number(
-            new URL(
-              config.get<string>('REDIS_URL', 'redis://localhost:6379'),
-            ).port || 6379,
-          ),
-        },
-      }),
-    }),
+      useFactory: (config: ConfigService) => {
+        const redisUrl = new URL(
+          config.get<string>('REDIS_URL', 'redis://localhost:6379'),
+        );
 
-    // Esta cola queda lista para trabajos largos de agentes.
+        return {
+          connection: {
+            host: redisUrl.hostname,
+            port: Number(redisUrl.port || 6379),
+            ...(redisUrl.password ? { password: redisUrl.password } : {}),
+            ...(redisUrl.username ? { username: redisUrl.username } : {}),
+          },
+        };
+      },
+    }),
     BullModule.registerQueue({
-      name: 'agent-jobs',
+      name: AGENT_JOBS_QUEUE,
     }),
   ],
-  exports: [BullModule],
+  controllers: [AgentJobsController],
+  providers: [
+    AgentJobsService,
+    ProviderMessageQueueBridge,
+    ProviderMessageProcessor,
+  ],
+  exports: [BullModule, AgentJobsService],
 })
 export class AgentQueueModule {}
