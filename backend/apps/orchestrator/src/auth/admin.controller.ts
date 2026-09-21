@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -24,10 +25,6 @@ import { RolesGuard } from './roles.guard';
 import { UsersService } from './users.service';
 
 class CreateUserDto {
-  @IsString()
-  @MinLength(1)
-  tenantId!: string;
-
   @IsString()
   @MinLength(3)
   @MaxLength(120)
@@ -70,6 +67,8 @@ class CreateTenantDto {
   slug!: string;
 }
 
+type AuthRequest = Request & { user?: AuthenticatedUser };
+
 @Controller('admin')
 @UseGuards(AuthGuard, RolesGuard)
 @Roles('admin')
@@ -77,21 +76,18 @@ export class AdminController {
   constructor(private readonly users: UsersService) {}
 
   @Get('users')
-  listUsers(
-    @Req()
-    request: Request & {
-      user?: AuthenticatedUser;
-    },
-  ) {
-    // El admin bootstrap/default ve su tenant. Un futuro super-admin explícito
-    // podrá ampliar este alcance sin mezclar tenants accidentalmente.
-    return this.users.listUsers(request.user?.tenantId ?? 'default');
+  listUsers(@Req() request: AuthRequest) {
+    return this.users.listUsers(
+      request.user?.tenantId ?? 'default',
+    );
   }
 
   @Post('users')
-  createUser(@Body() dto: CreateUserDto) {
+  createUser(@Req() request: AuthRequest, @Body() dto: CreateUserDto) {
+    const user = request.user!;
+
     return this.users.createUser({
-      tenantId: dto.tenantId,
+      tenantId: user.tenantId,
       username: dto.username.trim(),
       password: dto.password,
       role: dto.role,
@@ -99,17 +95,36 @@ export class AdminController {
   }
 
   @Patch('users/:id')
-  updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto) {
-    return this.users.updateUser(id, dto);
+  updateUser(
+    @Req() request: AuthRequest,
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+  ) {
+    const user = request.user!;
+
+    return this.users.updateUser(id, user.tenantId, dto);
   }
 
   @Get('tenants')
-  listTenants() {
+  listTenants(@Req() request: AuthRequest) {
+    this.requirePlatformAdmin(request.user!);
     return this.users.listTenants();
   }
 
   @Post('tenants')
-  createTenant(@Body() dto: CreateTenantDto) {
+  createTenant(
+    @Req() request: AuthRequest,
+    @Body() dto: CreateTenantDto,
+  ) {
+    this.requirePlatformAdmin(request.user!);
     return this.users.createTenant(dto.name, dto.slug);
+  }
+
+  private requirePlatformAdmin(user: AuthenticatedUser): void {
+    if (user.id !== 'bootstrap-admin') {
+      throw new ForbiddenException(
+        'Solo el administrador bootstrap puede gestionar tenants.',
+      );
+    }
   }
 }
