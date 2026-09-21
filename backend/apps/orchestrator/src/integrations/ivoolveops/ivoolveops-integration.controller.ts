@@ -47,6 +47,7 @@ class ProvisionAgentDto {
 
 class CreateSsoTicketDto {
   @IsString() @MinLength(1) @MaxLength(120) agent_id!: string;
+  @IsString() @MinLength(1) @MaxLength(190) external_project_id!: string;
   @IsString() @MinLength(1) @MaxLength(190) external_user_id!: string;
 }
 
@@ -83,6 +84,7 @@ export class IvoolveOpsIntegrationController {
     this.integration.assertServiceToken(authorization);
     return this.integration.createSsoTicket(
       dto.agent_id,
+      dto.external_project_id,
       dto.external_user_id,
       correlationId,
     );
