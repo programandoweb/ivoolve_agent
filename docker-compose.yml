@@ -1,0 +1,168 @@
+name: ivoolve-agent
+
+services:
+  mariadb:
+    image: mariadb:11.8
+    container_name: ivoolve-agent-mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_DATABASE:-ivoolve_agent}
+      MARIADB_USER: ${DB_USERNAME:-ivoolve}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-ivoolve_local}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-ivoolve_root_local}
+    volumes:
+      - ivoolve_agent_mariadb:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    networks:
+      - ivoolve_agent
+
+  redis:
+    image: redis:7-alpine
+    container_name: ivoolve-agent-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ivoolve_agent_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - ivoolve_agent
+
+  backend:
+    build:
+      context: ./backend
+    container_name: ivoolve-agent-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5020
+
+      REDIS_URL: redis://redis:6379
+      SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-86400}
+
+      DATABASE_URL: mysql://${DB_USERNAME:-ivoolve}:${DB_PASSWORD:-ivoolve_local}@mariadb:3306/${DB_DATABASE:-ivoolve_agent}
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-10}
+      DATABASE_AUTO_MIGRATE: ${DATABASE_AUTO_MIGRATE:-true}
+      DEFAULT_TENANT_ID: ${DEFAULT_TENANT_ID:-default}
+
+      AGENTS_PATH: /app/agents
+      AGENTS_MANAGED_PATH: /app/data/managed-agents
+      PROVIDERS_DATA_PATH: /app/data/providers
+      RUNTIME_DATA_PATH: /app/data/runtime
+      APPROVALS_DATA_PATH: /app/data/runtime/approvals.json
+      AUDIT_DATA_PATH: /app/data/runtime/audit.jsonl
+
+      RUNTIME_INSTANCE_ID: ${RUNTIME_INSTANCE_ID:-docker-main}
+      PROVIDER_LEASE_TTL_SECONDS: ${PROVIDER_LEASE_TTL_SECONDS:-45}
+      APPROVAL_REQUIRED_TOOLS: ${APPROVAL_REQUIRED_TOOLS:-provider.send_message}
+
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
+      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      GOOGLE_SEARCH_API_KEY: ${GOOGLE_SEARCH_API_KEY:-}
+      GOOGLE_SEARCH_ENGINE_ID: ${GOOGLE_SEARCH_ENGINE_ID:-}
+
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:1234/v1}
+      LLM_MODEL: ${LLM_MODEL:-google/gemma-4-e4b}
+      LLM_API_KEY: ${LLM_API_KEY:-lm-studio}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.2}
+      LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-60000}
+
+      LM_STUDIO_BASE_URL: ${LM_STUDIO_BASE_URL:-}
+      LM_STUDIO_MODEL: ${LM_STUDIO_MODEL:-}
+      LM_STUDIO_API_KEY: ${LM_STUDIO_API_KEY:-}
+      LM_STUDIO_TIMEOUT_MS: ${LM_STUDIO_TIMEOUT_MS:-180000}
+      LM_STUDIO_CHAT_PATH: ${LM_STUDIO_CHAT_PATH:-/api/v1/chat}
+      LM_STUDIO_FALLBACK_CHAT_PATH: ${LM_STUDIO_FALLBACK_CHAT_PATH:-/v1/chat/completions}
+
+      METRICS_WINDOW_MINUTES: ${METRICS_WINDOW_MINUTES:-60}
+      ALERT_FAILURE_RATE: ${ALERT_FAILURE_RATE:-0.2}
+      ALERT_P95_MS: ${ALERT_P95_MS:-60000}
+
+      IVOOLVEOPS_SERVICE_TOKEN: ${IVOOLVEOPS_SERVICE_TOKEN:-}
+      IVOOLVEOPS_ALLOWED_ORIGIN: ${IVOOLVEOPS_ALLOWED_ORIGIN:-}
+      SSO_TICKET_TTL_SECONDS: ${SSO_TICKET_TTL_SECONDS:-60}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5021}
+    volumes:
+      - ivoolve_agent_data:/app/data
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${BACKEND_PORT:-5020}:5020"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5020/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+    networks:
+      - ivoolve_agent
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5021}
+        NEXT_PUBLIC_SOCKET_URL: ${BACKEND_PUBLIC_URL:-http://localhost:5020}
+    container_name: ivoolve-agent-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5021
+      HOSTNAME: 0.0.0.0
+      BACKEND_URL: http://backend:5020
+      NEXT_PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5021}
+      NEXT_PUBLIC_SOCKET_URL: ${BACKEND_PUBLIC_URL:-http://localhost:5020}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-5021}:5021"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5021/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+    networks:
+      - ivoolve_agent
+
+networks:
+  ivoolve_agent:
+    name: ivoolve_agent
+
+volumes:
+  ivoolve_agent_mariadb:
+    name: ivoolve_agent_mariadb
+  ivoolve_agent_redis:
+    name: ivoolve_agent_redis
+  ivoolve_agent_data:
+    name: ivoolve_agent_data
