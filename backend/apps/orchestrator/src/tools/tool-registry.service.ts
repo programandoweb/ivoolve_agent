@@ -8,6 +8,7 @@ import {
 import { ApprovalsService } from '../approvals/approvals.service';
 import { ProvidersService } from '../providers/providers.service';
 import { GoogleProspectingService } from './google-prospecting.service';
+import { VideoGeneratorService } from './video-generator.service';
 import {
   RuntimeToolDefinition,
   ToolCallEnvelope,
@@ -20,6 +21,7 @@ export class ToolRegistryService {
     private readonly providers: ProvidersService,
     private readonly approvals: ApprovalsService,
     private readonly googleProspecting: GoogleProspectingService,
+    private readonly videoGenerator: VideoGeneratorService,
   ) {}
 
   definitions(): RuntimeToolDefinition[] {
@@ -57,6 +59,34 @@ export class ToolRegistryService {
         arguments: {
           query: 'Consulta específica de enriquecimiento',
           maxResults: 'Cantidad opcional de resultados entre 1 y 10',
+        },
+      },
+      {
+        name: 'video.capabilities',
+        description:
+          'Consulta las capacidades actuales del worker local de generación de video Intel XPU.',
+        arguments: {},
+      },
+      {
+        name: 'video.generate',
+        description:
+          'Crea un job asíncrono de video local. Devuelve jobId para consultar después con video.status. Máximo 5 segundos.',
+        arguments: {
+          prompt: 'Prompt visual detallado para el video',
+          negativePrompt: 'Prompt negativo opcional',
+          durationSeconds: 'Duración entre 1 y 5 segundos',
+          width: 'Ancho; por defecto 832',
+          height: 'Alto; por defecto 480',
+          fps: 'FPS; por defecto 16',
+          seed: 'Semilla opcional reproducible',
+        },
+      },
+      {
+        name: 'video.status',
+        description:
+          'Consulta el estado de un job de generación de video y devuelve la URL del MP4 cuando termina.',
+        arguments: {
+          jobId: 'ID devuelto por video.generate',
         },
       },
       {
@@ -198,6 +228,33 @@ export class ToolRegistryService {
         };
       }
 
+      case 'video.capabilities': {
+        return this.videoGenerator.capabilities();
+      }
+
+      case 'video.generate': {
+        if (context.actorRole === 'viewer') {
+          throw new ForbiddenException(
+            'El rol viewer no puede iniciar generación de video.',
+          );
+        }
+
+        return this.videoGenerator.generate({
+          prompt: this.requiredString(call, 'prompt'),
+          negativePrompt: this.optionalString(call, 'negativePrompt'),
+          durationSeconds: this.optionalNumber(call, 'durationSeconds', 5),
+          width: this.optionalNumber(call, 'width', 832),
+          height: this.optionalNumber(call, 'height', 480),
+          fps: this.optionalNumber(call, 'fps', 16),
+          seed: this.optionalNullableNumber(call, 'seed'),
+        });
+      }
+
+      case 'video.status': {
+        const jobId = this.requiredString(call, 'jobId');
+        return this.videoGenerator.status(jobId);
+      }
+
       case 'prospecting.score_lead': {
         const hasPhone = this.optionalBoolean(call, 'hasPhone');
         const hasWebsite = this.optionalBoolean(call, 'hasWebsite');
@@ -270,6 +327,29 @@ export class ToolRegistryService {
       );
     }
     return value.trim();
+  }
+
+  private optionalString(
+    call: ToolCallEnvelope,
+    key: string,
+  ): string | undefined {
+    const value = call.arguments?.[key];
+    return typeof value === 'string' && value.trim()
+      ? value.trim()
+      : undefined;
+  }
+
+  private optionalNullableNumber(
+    call: ToolCallEnvelope,
+    key: string,
+  ): number | undefined {
+    const value = call.arguments?.[key];
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return undefined;
   }
 
   private optionalNumber(
