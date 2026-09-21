@@ -7,15 +7,20 @@ import {
   Param,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import { Request } from 'express';
 
 import { AuthGuard } from '../auth/auth.guard';
+import { AuthenticatedUser } from '../auth/auth.types';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
 import { ProvidersService } from './providers.service';
+
+type AuthRequest = Request & { user?: AuthenticatedUser };
 
 @Controller('providers')
 @UseGuards(AuthGuard, RolesGuard)
@@ -23,48 +28,75 @@ export class ProvidersController {
   constructor(private readonly providers: ProvidersService) {}
 
   @Get()
-  list() {
-    return this.providers.list();
+  list(@Req() request: AuthRequest) {
+    return this.providers.list(request.user?.tenantId ?? 'default');
   }
 
   @Post()
   @Roles('admin', 'operator')
-  create(@Body() dto: CreateProviderDto) {
-    return this.providers.create(dto);
+  create(@Req() request: AuthRequest, @Body() dto: CreateProviderDto) {
+    return this.providers.create(
+      dto,
+      request.user?.tenantId ?? 'default',
+    );
   }
 
   @Get(':id')
-  get(@Param('id') id: string) {
-    return this.providers.get(id);
+  get(@Req() request: AuthRequest, @Param('id') id: string) {
+    return this.providers.get(
+      id,
+      request.user?.tenantId ?? 'default',
+    );
   }
 
   @Patch(':id')
   @Roles('admin', 'operator')
-  update(@Param('id') id: string, @Body() dto: UpdateProviderDto) {
-    return this.providers.update(id, dto);
+  update(
+    @Req() request: AuthRequest,
+    @Param('id') id: string,
+    @Body() dto: UpdateProviderDto,
+  ) {
+    return this.providers.update(
+      id,
+      dto,
+      request.user?.tenantId ?? 'default',
+    );
   }
 
   @Delete(':id')
   @Roles('admin')
   @HttpCode(204)
-  async remove(@Param('id') id: string) {
-    await this.providers.remove(id);
+  async remove(@Req() request: AuthRequest, @Param('id') id: string) {
+    await this.providers.remove(
+      id,
+      request.user?.tenantId ?? 'default',
+    );
   }
 
   @Post(':id/connect')
   @Roles('admin', 'operator')
-  connect(@Param('id') id: string) {
-    return this.providers.connect(id);
+  connect(@Req() request: AuthRequest, @Param('id') id: string) {
+    return this.providers.connect(
+      id,
+      request.user?.tenantId ?? 'default',
+    );
   }
 
   @Post(':id/disconnect')
   @Roles('admin', 'operator')
-  disconnect(@Param('id') id: string) {
-    return this.providers.disconnect(id);
+  disconnect(@Req() request: AuthRequest, @Param('id') id: string) {
+    return this.providers.disconnect(
+      id,
+      true,
+      request.user?.tenantId ?? 'default',
+    );
   }
 
   @Get(':id/connection')
-  connection(@Param('id') id: string) {
-    return this.providers.connection(id);
+  connection(@Req() request: AuthRequest, @Param('id') id: string) {
+    return this.providers.connection(
+      id,
+      request.user?.tenantId ?? 'default',
+    );
   }
 }
