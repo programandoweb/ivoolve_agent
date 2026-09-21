@@ -4,16 +4,18 @@ import {
   Gauge,
   MessageSquareText,
   Network,
-  ShieldCheck,
+  PlugZap,
+  ShieldCheck
 } from "lucide-react";
 import { LogoutButton } from "./logout-button";
 
 const items = [
   { href: "/dashboard", label: "Resumen", icon: Gauge },
   { href: "/dashboard/agents", label: "Agentes", icon: Bot },
+  { href: "/dashboard/providers", label: "Providers", icon: PlugZap },
   { href: "/dashboard/chat", label: "Conversación", icon: MessageSquareText },
   { href: "/dashboard/runtime", label: "Runtime", icon: Network },
-  { href: "/dashboard/security", label: "Seguridad", icon: ShieldCheck },
+  { href: "/dashboard/security", label: "Seguridad", icon: ShieldCheck }
 ];
 
 export function DashboardSidebar() {
