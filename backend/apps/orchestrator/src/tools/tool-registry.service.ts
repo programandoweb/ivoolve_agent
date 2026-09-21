@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -43,7 +44,9 @@ export class ToolRegistryService {
           .map(([name, description]) => `${name}: ${description}`)
           .join('; ');
 
-        return `- ${tool.name}: ${tool.description}${args ? ` Argumentos: ${args}` : ''}`;
+        return `- ${tool.name}: ${tool.description}${
+          args ? ` Argumentos: ${args}` : ''
+        }`;
       })
       .join('\n');
   }
@@ -80,6 +83,15 @@ export class ToolRegistryService {
       }
 
       case 'provider.send_message': {
+        if (
+          context.source === 'interactive' &&
+          context.actorRole === 'viewer'
+        ) {
+          throw new ForbiddenException(
+            'El rol viewer no puede ejecutar tools de escritura.',
+          );
+        }
+
         const providerId = this.requiredString(call, 'providerId');
         const recipient = this.requiredString(call, 'recipient');
         const text = this.requiredString(call, 'text');
