@@ -83,10 +83,9 @@ export class ToolRegistryService {
       }
 
       case 'provider.send_message': {
-        if (
-          context.source === 'interactive' &&
-          context.actorRole === 'viewer'
-        ) {
+        // El rol del humano se conserva incluso si Jorge delega a otro agente.
+        // Los turnos autónomos de providers no traen actorRole y no se bloquean.
+        if (context.actorRole === 'viewer') {
           throw new ForbiddenException(
             'El rol viewer no puede ejecutar tools de escritura.',
           );
