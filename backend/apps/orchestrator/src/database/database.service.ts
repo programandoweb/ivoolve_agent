@@ -169,6 +169,44 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         INDEX idx_approvals_status_created (status, created_at),
         INDEX idx_approvals_tenant_status (tenant_id, status)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS integration_contexts (
+        id VARCHAR(64) PRIMARY KEY,
+        external_source VARCHAR(60) NOT NULL,
+        external_customer_id VARCHAR(190) NOT NULL,
+        external_project_id VARCHAR(190) NOT NULL,
+        customer_json LONGTEXT NOT NULL,
+        project_json LONGTEXT NOT NULL,
+        created_at DATETIME(3) NOT NULL,
+        updated_at DATETIME(3) NOT NULL,
+        UNIQUE KEY uq_integration_context_project (external_source, external_project_id),
+        INDEX idx_integration_context_customer (external_source, external_customer_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS integration_agent_links (
+        id VARCHAR(64) PRIMARY KEY,
+        external_source VARCHAR(60) NOT NULL,
+        external_customer_id VARCHAR(190) NOT NULL,
+        external_project_id VARCHAR(190) NOT NULL,
+        role VARCHAR(80) NOT NULL,
+        agent_id VARCHAR(120) NOT NULL,
+        idempotency_key VARCHAR(255) NOT NULL,
+        status VARCHAR(30) NOT NULL DEFAULT 'active',
+        created_at DATETIME(3) NOT NULL,
+        updated_at DATETIME(3) NOT NULL,
+        UNIQUE KEY uq_integration_agent_role (external_source, external_project_id, role),
+        UNIQUE KEY uq_integration_idempotency (external_source, idempotency_key),
+        INDEX idx_integration_agent (agent_id),
+        INDEX idx_integration_customer (external_source, external_customer_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS sso_tickets (
+        id VARCHAR(64) PRIMARY KEY,
+        ticket_hash CHAR(64) NOT NULL UNIQUE,
+        agent_id VARCHAR(120) NOT NULL,
+        external_user_id VARCHAR(190) NOT NULL,
+        expires_at DATETIME(3) NOT NULL,
+        used_at DATETIME(3) NULL,
+        created_at DATETIME(3) NOT NULL,
+        INDEX idx_sso_ticket_expiry (expires_at, used_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       `CREATE TABLE IF NOT EXISTS audit_events (
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
         tenant_id VARCHAR(64) NULL,
