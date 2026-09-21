@@ -10,6 +10,7 @@ Plataforma para construir, operar y supervisar agentes de IA con canales externo
 - MariaDB
 - LM Studio / API compatible OpenAI
 - WhatsApp vía Baileys
+- Google Maps/Places + Google Search para prospección
 
 ## Capacidades actuales
 
@@ -18,6 +19,10 @@ Plataforma para construir, operar y supervisar agentes de IA con canales externo
 - chat en tiempo real;
 - Agent Builder conversacional;
 - agentes core y gestionados;
+- agente comercial core para Ivoolve ERP;
+- búsqueda de prospectos con Google Maps/Places;
+- enriquecimiento opcional con Google Search;
+- scoring comercial reproducible y handoff humano;
 - delegación Jorge → subagentes;
 - Tool Registry ejecutable;
 - Human-in-the-Loop approvals;
@@ -31,6 +36,32 @@ Plataforma para construir, operar y supervisar agentes de IA con canales externo
 - métricas, P95 y alertas;
 - audit trail;
 - CI con tests backend + build backend/frontend.
+
+## Agente comercial Ivoolve ERP
+
+El agente core `ivoolve-erp-sales` usa Google Maps como fuente primaria y Google Search como enriquecimiento. Su flujo es:
+
+```text
+Campaña
+  -> Google Maps
+  -> enriquecimiento Google Search
+  -> scoring
+  -> mensaje personalizado
+  -> approval humano
+  -> provider
+  -> seguimiento
+  -> handoff a Jorge
+```
+
+Configura en `backend/.env`:
+
+```text
+GOOGLE_MAPS_API_KEY=
+GOOGLE_SEARCH_API_KEY=
+GOOGLE_SEARCH_ENGINE_ID=
+```
+
+`GOOGLE_MAPS_API_KEY` es obligatoria para descubrimiento. Google Search es opcional mientras no se requiera enriquecimiento web.
 
 ## Dashboard
 
