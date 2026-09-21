@@ -51,11 +51,16 @@ type AgentChatProps = {
   mode?: "chat" | "builder";
 };
 
-function getOrCreateSessionId(mode: "chat" | "builder"): string {
+function getOrCreateSessionId(
+  mode: "chat" | "builder",
+  agentId?: string,
+): string {
   const storageKey =
     mode === "builder"
       ? "ivoolve-agent-builder-session"
-      : "ivoolve-agent-session";
+      : agentId
+        ? `ivoolve-agent-session:${agentId}`
+        : "ivoolve-agent-session";
 
   const existing = window.localStorage.getItem(storageKey);
   if (existing) return existing;
@@ -89,7 +94,7 @@ export function AgentChat({ mode = "chat", agentId }: AgentChatProps) {
   ]);
 
   useEffect(() => {
-    const currentSessionId = getOrCreateSessionId(mode);
+    const currentSessionId = getOrCreateSessionId(mode, agentId);
     setSessionId(currentSessionId);
 
     const socket = io(
@@ -156,7 +161,7 @@ export function AgentChat({ mode = "chat", agentId }: AgentChatProps) {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [eventPrefix, mode]);
+  }, [agentId, eventPrefix, mode]);
 
   const agentLabel = useMemo(
     () => (agents.length > 0 ? agents.join(", ") : fallback),
