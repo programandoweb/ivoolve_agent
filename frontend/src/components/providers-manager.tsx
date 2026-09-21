@@ -62,7 +62,13 @@ const EMPTY_FORM: FormState = {
   autoConnect: true
 };
 
-export function ProvidersManager({ role }: { role: "admin" | "operator" | "viewer" }) {\n  const canMutate = role === "admin" || role === "operator";\n  const canDelete = role === "admin";
+export function ProvidersManager({
+  role
+}: {
+  role: "admin" | "operator" | "viewer";
+}) {
+  const canMutate = role === "admin" || role === "operator";
+  const canDelete = role === "admin";
   const [providers, setProviders] = useState<Provider[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
