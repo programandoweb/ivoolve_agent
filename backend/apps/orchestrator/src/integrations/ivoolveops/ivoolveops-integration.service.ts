@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { RowDataPacket } from 'mysql2/promise';
 
 import { AgentRegistryService } from '../../agents/agent-registry.service';
@@ -89,7 +89,7 @@ export class IvoolveOpsIntegrationService {
          project_json=VALUES(project_json),
          updated_at=VALUES(updated_at)`,
       [
-        crypto.randomUUID(),
+        randomUUID(),
         payload.external_customer_id,
         payload.external_project_id,
         JSON.stringify(payload.customer),
@@ -111,7 +111,7 @@ export class IvoolveOpsIntegrationService {
          role, agent_id, idempotency_key, status, created_at, updated_at)
        VALUES (?, 'ivoolveops', ?, ?, 'customer_support', ?, ?, 'active', ?, ?)`,
       [
-        crypto.randomUUID(),
+        randomUUID(),
         payload.external_customer_id,
         payload.external_project_id,
         agentId,
@@ -176,7 +176,7 @@ export class IvoolveOpsIntegrationService {
         (id, ticket_hash, agent_id, external_user_id, expires_at, used_at, created_at)
        VALUES (?, ?, ?, ?, ?, NULL, ?)`,
       [
-        crypto.randomUUID(),
+        randomUUID(),
         ticketHash,
         agentId,
         externalUserId,
