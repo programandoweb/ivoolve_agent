@@ -14,12 +14,20 @@ type Agent = {
 };
 
 export default async function AgentsPage() {
-  const response = await authenticatedBackendFetch("/agents");
-  const data = response.ok
-    ? ((await response.json()) as { details?: Agent[] })
+  const [agentsResponse, meResponse] = await Promise.all([
+    authenticatedBackendFetch("/agents"),
+    authenticatedBackendFetch("/auth/me")
+  ]);
+
+  const data = agentsResponse.ok
+    ? ((await agentsResponse.json()) as { details?: Agent[] })
     : { details: [] as Agent[] };
+  const me = meResponse.ok
+    ? ((await meResponse.json()) as { user?: { role?: string } })
+    : {};
 
   const agents = data.details ?? [];
+  const isAdmin = me.user?.role === "admin";
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-8 lg:px-8 lg:py-10">
@@ -36,13 +44,15 @@ export default async function AgentsPage() {
           </p>
         </div>
 
-        <Link
-          href="/dashboard/agents/create"
-          className="inline-flex items-center gap-2 rounded-2xl bg-violet-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-violet-200 transition hover:bg-violet-700"
-        >
-          <Plus className="h-4 w-4" />
-          Crear agente
-        </Link>
+        {isAdmin && (
+          <Link
+            href="/dashboard/agents/create"
+            className="inline-flex items-center gap-2 rounded-2xl bg-violet-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-violet-200 transition hover:bg-violet-700"
+          >
+            <Plus className="h-4 w-4" />
+            Crear agente
+          </Link>
+        )}
       </div>
 
       <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -79,7 +89,7 @@ export default async function AgentsPage() {
                   : "Agente especializado registrado.")}
             </p>
 
-            {agent.fallback && (
+            {agent.fallback && isAdmin && (
               <div className="mt-5 flex items-center gap-2 rounded-2xl bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700">
                 <Sparkles className="h-4 w-4" />
                 Agent Builder disponible
