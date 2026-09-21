@@ -1,62 +1,114 @@
 # Arquitectura actual
 
-## Flujo síncrono básico
+## Flujo conversacional
 
 ```text
-Usuario
-  |
-  v
-POST /agents/chat
-  |
-  v
-AgentsController
-  |
-  v
+Dashboard / Socket.IO
+      |
+      v
 AgentRuntimeService
-  |
-  +--> Redis: recuperar sesión
-  |
-  +--> AgentRegistry: cargar Jorge
-  |
-  +--> LLM: generar respuesta
-  |
-  +--> Redis: guardar sesión
-  |
-  v
-Respuesta HTTP
+      |
+      +--> Redis: sesión temporal
+      |
+      +--> AgentRegistry: identidad del agente
+      |
+      +--> ToolRegistry: tools ejecutables
+      |
+      +--> LLM: razonamiento
+      |
+      +--> Delegación opcional Jorge -> subagente
+      |
+      v
+Respuesta
 ```
 
-La petición termina, pero el estado queda en Redis.
-
-## Flujo asíncrono futuro
+## Flujo multicanal asíncrono
 
 ```text
-Jorge
-  |
-  v
-BullMQ -> Redis -> Worker -> Resultado
+WhatsApp / futuro Slack / otro canal
+      |
+      v
+Provider Adapter
+      |
+      v
+NormalizedProviderMessage
+      |
+      v
+BullMQ agent-jobs
+      |
+      v
+ProviderMessageProcessor
+      |
+      v
+ProviderRoutingService
+      |
+      +--> Redis claim: idempotencia
+      |
+      +--> Agent Registry: ACL + selección
+      |
+      +--> AgentRuntimeService
+      |
+      +--> Tool Registry
+      |
+      +--> LLM
+      |
+      v
+ProvidersService.sendText()
+      |
+      v
+Canal externo
 ```
 
-Esto permitirá que una tarea continúe incluso cuando la petición HTTP original ya terminó.
+Cada contacto mantiene una sesión independiente:
+
+```text
+provider:{providerId}:contact:{conversationId}
+```
 
 ## Componentes
 
 ### NestJS
 
-Es el proceso servidor que recibe peticiones y ejecuta el runtime.
+API, Socket.IO, orquestación, workers y adapters.
 
 ### Redis
 
-Guarda estado temporal y sirve como infraestructura de coordinación.
+Estado temporal, sesiones, idempotencia y backend de BullMQ.
 
 ### BullMQ
 
-Modela trabajo pendiente/reintentable.
+Recibe eventos de providers y los ejecuta con reintentos y backoff. Evita que el evento de Baileys quede bloqueado esperando al LLM.
 
-### Agents folder
+### Agent Registry
 
-Contiene identidad declarativa y memoria base de cada agente.
+Unifica agentes core y agentes gestionados creados desde el dashboard.
 
-### LLM Adapter
+### Jorge
 
-Es la frontera hacia LM Studio u otro proveedor compatible.
+Agente principal y supervisor. Puede responder directamente o delegar en un subagente registrado mediante una instrucción estructurada.
+
+### Tool Registry
+
+Frontera de acciones reales. Actualmente:
+
+- `provider.list`
+- `provider.send_message`
+
+La declaración de una tool dentro de un agente no concede permisos por sí misma: el runtime valida la ACL del provider.
+
+### Providers
+
+Dominio genérico de canales externos. El primer adapter es `whatsapp_baileys`. El contrato está pensado para incorporar Slack, Telegram, email u otros medios sin modificar el runtime de agentes.
+
+### Observabilidad
+
+Las ejecuciones del MVP se guardan como JSONL bajo `RUNTIME_DATA_PATH` y se consultan desde `/runtime/executions`. El dashboard también consulta estadísticas de BullMQ.
+
+## Persistencia
+
+- Redis: temporal/coordinación.
+- `data/managed-agents`: agentes gestionados.
+- `data/providers`: metadatos y credenciales de canales.
+- `data/runtime`: trazas operativas.
+
+En producción estos directorios deben estar en volumen persistente. Para alta disponibilidad/múltiples instancias, la siguiente evolución es mover metadatos y trazas a una base de datos compartida manteniendo fuera del repositorio las credenciales sensibles.
