@@ -13,11 +13,15 @@ export class AgentsController {
     const definitions = this.registry.list();
 
     return {
-      // Se conserva el contrato simple usado por el chat.
       agents: definitions.map((agent) => agent.id),
-      // details alimenta el dashboard sin romper consumidores existentes.
       details: definitions.map((agent) => ({
         id: agent.id,
+        name: agent.metadata?.name ?? agent.id,
+        role: agent.metadata?.role,
+        primaryGoal: agent.metadata?.primaryGoal,
+        skills: agent.metadata?.skills ?? [],
+        executionMode: agent.metadata?.executionMode,
+        source: agent.source,
         fallback: agent.id === 'jorge',
       })),
       fallback: 'jorge',
