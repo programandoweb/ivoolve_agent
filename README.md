@@ -36,6 +36,8 @@ Plataforma para construir, operar y supervisar agentes de IA con canales externo
 - métricas, P95 y alertas;
 - audit trail;
 - CI con tests backend + build backend/frontend.
+- provisioning idempotente de agentes de soporte desde IvoolveOps;
+- SSO temporal single-use para abrir un agente sin compartir contraseñas.
 
 ## Agente comercial Ivoolve ERP
 
@@ -136,4 +138,12 @@ Arquitectura:
 
 ```text
 backend/docs/architecture.md
+```
+
+## Integración con IvoolveOps
+
+El contrato privado, referencias externas, aislamiento de contexto y SSO están documentados en:
+
+```text
+docs/integrations/ivoolveops-ivoolve-agent.md
 ```
