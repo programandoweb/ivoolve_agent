@@ -77,6 +77,88 @@ GOOGLE_SEARCH_ENGINE_ID=
 - `/dashboard/runtime` — jobs, métricas, alertas y ejecuciones;
 - `/dashboard/security` — seguridad.
 
+## Docker completo
+
+El repositorio puede ejecutarse completamente con Docker desde la raíz:
+
+- Frontend Next.js: `http://localhost:5021`
+- Backend NestJS + Socket.IO: `http://localhost:5020`
+- Redis interno
+- MariaDB interna
+- Volumen persistente para runtime, agentes gestionados y sesiones de providers/Baileys
+
+### Primer arranque en Windows / PowerShell
+
+```powershell
+cd D:\ivoolve_agent
+Copy-Item .env.example .env
+docker compose build
+```
+
+Genera el hash de la contraseña administrativa:
+
+```powershell
+docker compose run --rm --no-deps backend npm run auth:hash -- "MiClaveSegura123!"
+```
+
+Copia el hash resultante en:
+
+```env
+ADMIN_PASSWORD_HASH=...
+```
+
+Genera el secreto JWT:
+
+```powershell
+docker compose run --rm --no-deps backend npm run auth:secret
+```
+
+Copia el valor generado en:
+
+```env
+JWT_SECRET=...
+```
+
+Luego inicia todo:
+
+```powershell
+docker compose up -d --build
+```
+
+Estado:
+
+```powershell
+docker compose ps
+```
+
+Logs:
+
+```powershell
+docker compose logs -f --tail=100
+```
+
+Detener sin borrar datos:
+
+```powershell
+docker compose down
+```
+
+Los datos persisten en los volúmenes:
+
+```text
+ivoolve_agent_mariadb
+ivoolve_agent_redis
+ivoolve_agent_data
+```
+
+Para LM Studio ejecutándose en el mismo PC, el compose usa por defecto:
+
+```env
+LLM_BASE_URL=http://host.docker.internal:1234/v1
+```
+
+Si utilizas otra URL, VPN o endpoint compatible OpenAI, cámbiala en `.env`.
+
 ## Inicio local
 
 Backend:
