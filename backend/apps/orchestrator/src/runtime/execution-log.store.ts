@@ -8,6 +8,7 @@ import { DatabaseService } from '../database/database.service';
 import { RuntimeExecutionRecord } from './execution-log.types';
 
 interface ExecutionRow extends RowDataPacket {
+  tenant_id: string | null;
   record_json: string;
 }
 
@@ -19,25 +20,29 @@ export class ExecutionLogStore {
   ) {}
 
   async append(record: RuntimeExecutionRecord): Promise<void> {
-    if (this.database.enabled) {
-      const tenantId = this.config.get<string>(
-        'DEFAULT_TENANT_ID',
-        'default',
-      );
+    const tenantId =
+      record.tenantId ??
+      this.config.get<string>('DEFAULT_TENANT_ID', 'default');
 
+    const normalized: RuntimeExecutionRecord = {
+      ...record,
+      tenantId,
+    };
+
+    if (this.database.enabled) {
       await this.database.execute(
         `INSERT INTO runtime_executions
           (id, tenant_id, provider_id, agent_id, status, record_json, started_at, finished_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          record.id,
+          normalized.id,
           tenantId,
-          record.providerId ?? null,
-          record.agentId ?? null,
-          record.status,
-          JSON.stringify(record),
-          new Date(record.startedAt),
-          record.finishedAt ? new Date(record.finishedAt) : null,
+          normalized.providerId ?? null,
+          normalized.agentId ?? null,
+          normalized.status,
+          JSON.stringify(normalized),
+          new Date(normalized.startedAt),
+          normalized.finishedAt ? new Date(normalized.finishedAt) : null,
         ],
       );
       return;
@@ -45,33 +50,63 @@ export class ExecutionLogStore {
 
     const path = this.path();
     await fs.mkdir(dirname(path), { recursive: true });
-    await fs.appendFile(path, `${JSON.stringify(record)}\n`, 'utf8');
+    await fs.appendFile(
+      path,
+      `${JSON.stringify(normalized)}\n`,
+      'utf8',
+    );
   }
 
-  async recent(limit = 100): Promise<RuntimeExecutionRecord[]> {
+  async recent(
+    limit = 100,
+    tenantId?: string,
+  ): Promise<RuntimeExecutionRecord[]> {
     const safeLimit = Math.max(1, Math.min(limit, 500));
 
     if (this.database.enabled) {
-      const rows = await this.database.query<ExecutionRow[]>(
-        `SELECT record_json
-           FROM runtime_executions
-          ORDER BY started_at DESC
-          LIMIT ${safeLimit}`,
-      );
+      const rows = tenantId
+        ? await this.database.query<ExecutionRow[]>(
+            `SELECT tenant_id, record_json
+               FROM runtime_executions
+              WHERE tenant_id = ?
+              ORDER BY started_at DESC
+              LIMIT ${safeLimit}`,
+            [tenantId],
+          )
+        : await this.database.query<ExecutionRow[]>(
+            `SELECT tenant_id, record_json
+               FROM runtime_executions
+              ORDER BY started_at DESC
+              LIMIT ${safeLimit}`,
+          );
 
-      return rows.map(
-        (row) => JSON.parse(row.record_json) as RuntimeExecutionRecord,
-      );
+      return rows.map((row) => ({
+        ...(JSON.parse(row.record_json) as RuntimeExecutionRecord),
+        tenantId:
+          (JSON.parse(row.record_json) as RuntimeExecutionRecord).tenantId ??
+          row.tenant_id ??
+          this.config.get<string>('DEFAULT_TENANT_ID', 'default'),
+      }));
     }
 
     try {
       const raw = await fs.readFile(this.path(), 'utf8');
-      return raw
+      const items = raw
         .split('\n')
         .filter(Boolean)
-        .slice(-safeLimit)
-        .reverse()
-        .map((line) => JSON.parse(line) as RuntimeExecutionRecord);
+        .map((line) => JSON.parse(line) as RuntimeExecutionRecord)
+        .map((item) => ({
+          ...item,
+          tenantId:
+            item.tenantId ??
+            this.config.get<string>('DEFAULT_TENANT_ID', 'default'),
+        }));
+
+      const filtered = tenantId
+        ? items.filter((item) => item.tenantId === tenantId)
+        : items;
+
+      return filtered.slice(-safeLimit).reverse();
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
       throw error;
