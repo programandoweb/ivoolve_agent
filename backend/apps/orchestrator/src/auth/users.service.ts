@@ -30,22 +30,16 @@ interface UserRow extends RowDataPacket, DatabaseUserRow {
 export class UsersService {
   constructor(private readonly database: DatabaseService) {}
 
-  async listUsers(tenantId?: string) {
+  async listUsers(tenantId: string) {
     this.requireDatabase();
 
-    const rows = tenantId
-      ? await this.database.query<UserRow[]>(
-          `SELECT id, tenant_id, username, role, status, created_at, updated_at
-             FROM users
-            WHERE tenant_id = ?
-            ORDER BY created_at ASC`,
-          [tenantId],
-        )
-      : await this.database.query<UserRow[]>(
-          `SELECT id, tenant_id, username, role, status, created_at, updated_at
-             FROM users
-            ORDER BY created_at ASC`,
-        );
+    const rows = await this.database.query<UserRow[]>(
+      `SELECT id, tenant_id, username, role, status, created_at, updated_at
+         FROM users
+        WHERE tenant_id = ?
+        ORDER BY created_at ASC`,
+      [tenantId],
+    );
 
     return rows.map((row) => ({
       id: row.id,
@@ -120,6 +114,7 @@ export class UsersService {
 
   async updateUser(
     id: string,
+    tenantId: string,
     input: {
       role?: UserRole;
       status?: 'active' | 'disabled';
@@ -132,9 +127,9 @@ export class UsersService {
       `SELECT id, tenant_id, username, password_hash, role, status,
               created_at, updated_at
          FROM users
-        WHERE id = ?
+        WHERE id = ? AND tenant_id = ?
         LIMIT 1`,
-      [id],
+      [id, tenantId],
     );
 
     const current = rows[0];
@@ -152,8 +147,8 @@ export class UsersService {
     await this.database.execute(
       `UPDATE users
           SET role = ?, status = ?, password_hash = ?, updated_at = ?
-        WHERE id = ?`,
-      [role, status, passwordHash, updatedAt, id],
+        WHERE id = ? AND tenant_id = ?`,
+      [role, status, passwordHash, updatedAt, id, tenantId],
     );
 
     return {
