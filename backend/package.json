@@ -14,17 +14,20 @@
     "test": "jest",
     "redis:up": "docker compose up -d redis",
     "redis:down": "docker compose down",
-    "setup:windows": "powershell -ExecutionPolicy Bypass -File ./scripts/setup.ps1",
-    "auth:secret": "node scripts/generate-jwt-secret.mjs"
+    "auth:hash": "node scripts/hash-password.mjs",
+    "auth:secret": "node scripts/generate-jwt-secret.mjs",
+    "setup:windows": "powershell -ExecutionPolicy Bypass -File ./scripts/setup.ps1"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
+    "@nestjs/jwt": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/platform-socket.io": "^11.0.0",
     "@nestjs/websockets": "^11.0.0",
+    "bcryptjs": "^2.4.3",
     "bullmq": "^5.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
