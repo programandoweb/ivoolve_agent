@@ -12,3 +12,7 @@ Thumbs.db
 
 # Agentes creados desde el dashboard son datos de runtime, no código fuente.
 backend/data/managed-agents/
+
+# Providers contiene credenciales de canales y claves Signal de WhatsApp.
+# Nunca debe versionarse.
+backend/data/providers/
