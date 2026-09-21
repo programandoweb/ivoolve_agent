@@ -1,9 +1,15 @@
+export type UserRole = 'admin' | 'operator' | 'viewer';
+
 export interface AuthenticatedUser {
+  id: string;
   username: string;
-  role: 'admin';
+  role: UserRole;
+  tenantId: string;
 }
 
 export interface JwtPayload {
   sub: string;
-  role: 'admin';
+  username: string;
+  role: UserRole;
+  tenantId: string;
 }
