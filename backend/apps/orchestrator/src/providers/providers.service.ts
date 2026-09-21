@@ -13,7 +13,7 @@ import makeWASocket, {
   useMultiFileAuthState,
   type WAMessage,
 } from '@whiskeysockets/baileys';
-import QRCode from 'qrcode';
+import * as QRCode from 'qrcode';
 
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
