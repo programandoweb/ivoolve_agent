@@ -8,6 +8,7 @@ import { RedisModule } from '../state/redis.module';
 import { ExecutionLogStore } from './execution-log.store';
 import { ProviderRoutingService } from './provider-routing.service';
 import { RuntimeController } from './runtime.controller';
+import { RuntimeMetricsService } from './runtime-metrics.service';
 
 @Module({
   imports: [
@@ -18,7 +19,15 @@ import { RuntimeController } from './runtime.controller';
     RedisModule,
   ],
   controllers: [RuntimeController],
-  providers: [ExecutionLogStore, ProviderRoutingService],
-  exports: [ExecutionLogStore, ProviderRoutingService],
+  providers: [
+    ExecutionLogStore,
+    RuntimeMetricsService,
+    ProviderRoutingService,
+  ],
+  exports: [
+    ExecutionLogStore,
+    RuntimeMetricsService,
+    ProviderRoutingService,
+  ],
 })
 export class RuntimeModule {}
