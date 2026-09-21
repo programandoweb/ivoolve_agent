@@ -2,11 +2,15 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 
 import { AuthGuard } from '../auth/auth.guard';
 import { ExecutionLogStore } from './execution-log.store';
+import { RuntimeMetricsService } from './runtime-metrics.service';
 
 @Controller('runtime')
 @UseGuards(AuthGuard)
 export class RuntimeController {
-  constructor(private readonly executions: ExecutionLogStore) {}
+  constructor(
+    private readonly executions: ExecutionLogStore,
+    private readonly metrics: RuntimeMetricsService,
+  ) {}
 
   @Get('executions')
   async recent(@Query('limit') limit?: string) {
@@ -21,5 +25,10 @@ export class RuntimeController {
       failed: items.filter((item) => item.status === 'failed').length,
       completed: items.filter((item) => item.status === 'completed').length,
     };
+  }
+
+  @Get('metrics')
+  metricsSnapshot() {
+    return this.metrics.snapshot();
   }
 }
