@@ -7,6 +7,7 @@ export type ExecutionStatus =
 
 export interface RuntimeExecutionRecord {
   id: string;
+  tenantId?: string;
   providerId?: string;
   conversationId?: string;
   externalMessageId?: string;
