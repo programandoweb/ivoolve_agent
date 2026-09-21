@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Ivoolve Agent">
+  <defs>
+    <linearGradient id="bg" x1="72" y1="48" x2="440" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#5B21B6"/>
+    </linearGradient>
+    <linearGradient id="orb" x1="146" y1="130" x2="372" y2="388" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity=".98"/>
+      <stop offset="1" stop-color="#DDD6FE" stop-opacity=".92"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="128" fill="#09090B"/>
+  <rect x="28" y="28" width="456" height="456" rx="108" fill="url(#bg)"/>
+
+  <circle cx="256" cy="256" r="118" fill="none" stroke="#C4B5FD" stroke-width="18" stroke-opacity=".55"/>
+  <circle cx="256" cy="256" r="78" fill="#111827" fill-opacity=".92"/>
+  <circle cx="256" cy="256" r="36" fill="url(#orb)"/>
+
+  <circle cx="256" cy="118" r="22" fill="#FFFFFF"/>
+  <circle cx="383" cy="287" r="22" fill="#FFFFFF"/>
+  <circle cx="163" cy="361" r="22" fill="#FFFFFF"/>
+
+  <path d="M256 140V220M361 284L304 266M177 347L220 302" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="8" fill="#7C3AED"/>
+</svg>
