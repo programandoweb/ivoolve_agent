@@ -9,6 +9,9 @@ export interface ExecutionTraceStartInput {
   id: string;
   tenantId?: string;
   agentId?: string;
+  providerId?: string;
+  conversationId?: string;
+  externalMessageId?: string;
   source: string;
   correlationId?: string;
   campaignId?: string;
@@ -49,6 +52,9 @@ export class ExecutionTraceService {
       id: input.id,
       tenantId,
       agentId: input.agentId,
+      providerId: input.providerId,
+      conversationId: input.conversationId,
+      externalMessageId: input.externalMessageId,
       source: input.source,
       correlationId: input.correlationId,
       campaignId: input.campaignId,
@@ -63,7 +69,7 @@ export class ExecutionTraceService {
       await this.database.execute(
         `INSERT INTO runtime_executions
           (id, tenant_id, provider_id, agent_id, source, correlation_id, campaign_id, current_stage, status, record_json, started_at, finished_at)
-         VALUES (?, ?, NULL, ?, ?, ?, ?, 'received', 'received', ?, ?, NULL)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'received', 'received', ?, ?, NULL)
          ON DUPLICATE KEY UPDATE
            tenant_id = VALUES(tenant_id),
            agent_id = VALUES(agent_id),
@@ -77,6 +83,7 @@ export class ExecutionTraceService {
         [
           input.id,
           tenantId,
+          input.providerId ?? null,
           input.agentId ?? null,
           input.source,
           input.correlationId ?? null,
@@ -90,6 +97,9 @@ export class ExecutionTraceService {
         message: 'Ejecución recibida por el orquestador.',
         data: {
           agentId: input.agentId,
+          providerId: input.providerId,
+          conversationId: input.conversationId,
+          externalMessageId: input.externalMessageId,
           source: input.source,
           correlationId: input.correlationId,
           campaignId: input.campaignId,
