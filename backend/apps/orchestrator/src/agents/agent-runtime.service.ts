@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
+import { ExecutionTraceService } from '../database/execution-trace.service';
 import { LlmService } from '../llm/llm.service';
 import { LlmMessage } from '../llm/llm.types';
 import { AgentSession, RedisService } from '../state/redis.service';
 import { ToolRegistryService } from '../tools/tool-registry.service';
+import {
+  RuntimeInvocationContext,
+  RuntimeTraceEvent,
+} from './agent.types';
 import { AgentRegistryService } from './agent-registry.service';
-import { RuntimeInvocationContext } from './agent.types';
 
 interface DelegationEnvelope {
   delegate: string;
@@ -19,6 +23,7 @@ export class AgentRuntimeService {
     private readonly redis: RedisService,
     private readonly llm: LlmService,
     private readonly tools: ToolRegistryService,
+    private readonly traces: ExecutionTraceService,
   ) {}
 
   async chat(
@@ -43,13 +48,40 @@ export class AgentRuntimeService {
     agentId: string,
     context: RuntimeInvocationContext = { source: 'interactive' },
   ) {
+    await this.trace(context, {
+      stage: 'agent.request',
+      message: 'El runtime recibió una petición para el agente.',
+      data: {
+        sessionId,
+        agentId,
+        source: context.source,
+        userMessage,
+      },
+    });
+
     const agent = this.registry.get(agentId);
 
     if (!agent) {
+      await this.trace(context, {
+        level: 'error',
+        stage: 'agent.not_found',
+        message: 'El agente solicitado no está registrado.',
+        data: { agentId },
+      });
       throw new NotFoundException(
         `El agente "${agentId}" no está registrado.`,
       );
     }
+
+    await this.trace(context, {
+      stage: 'agent.loaded',
+      message: 'Definición del agente cargada.',
+      data: {
+        agentId: agent.id,
+        source: agent.source,
+        metadata: agent.metadata,
+      },
+    });
 
     const existing = await this.redis.getSession(sessionId);
     const session: AgentSession =
@@ -67,6 +99,16 @@ export class AgentRuntimeService {
       role: 'user',
       content: userMessage,
       createdAt: new Date().toISOString(),
+    });
+
+    await this.trace(context, {
+      stage: 'session.loaded',
+      message: 'Sesión del agente preparada.',
+      data: {
+        sessionId,
+        previousMessageCount: existing?.messages.length ?? 0,
+        currentMessageCount: session.messages.length,
+      },
     });
 
     const registeredAgents = this.registry
@@ -117,19 +159,73 @@ export class AgentRuntimeService {
       })),
     ];
 
-    let answer = await this.llm.complete(messages);
+    let answer = await this.completeWithTrace(
+      messages,
+      context,
+      'llm.initial',
+    );
 
     const maxToolIterations = context.source === 'integration' ? 20 : 3;
     for (let iteration = 0; iteration < maxToolIterations; iteration += 1) {
       const call = this.tools.parse(answer);
-      if (!call) break;
+      if (!call) {
+        await this.trace(context, {
+          stage: 'agent.response',
+          message: 'El modelo devolvió una respuesta final sin tool pendiente.',
+          data: { iteration, answer },
+        });
+        break;
+      }
 
-      const result = await this.tools.execute(call, {
-        agentId: agent.id,
-        source: context.source,
-        actorRole: context.actorRole,
-        actorId: context.actorId,
-        tenantId: context.tenantId,
+      await this.trace(context, {
+        stage: 'tool.request',
+        message: `El agente solicitó ejecutar la tool "${call.tool}".`,
+        data: {
+          iteration,
+          tool: call.tool,
+          arguments: call.arguments,
+        },
+      });
+
+      let result: unknown;
+      const toolStartedAt = Date.now();
+      try {
+        result = await this.tools.execute(call, {
+          agentId: agent.id,
+          source: context.source,
+          actorRole: context.actorRole,
+          actorId: context.actorId,
+          tenantId: context.tenantId,
+          executionId: context.executionId,
+          correlationId: context.correlationId,
+          campaignId: context.campaignId,
+        });
+      } catch (error) {
+        await this.trace(context, {
+          level: 'error',
+          stage: 'tool.failed',
+          message: `La tool "${call.tool}" falló.`,
+          data: {
+            iteration,
+            tool: call.tool,
+            arguments: call.arguments,
+            durationMs: Date.now() - toolStartedAt,
+            error: this.errorMessage(error),
+          },
+        });
+        throw error;
+      }
+
+      await this.trace(context, {
+        stage: 'tool.completed',
+        message: `La tool "${call.tool}" terminó correctamente.`,
+        data: {
+          iteration,
+          tool: call.tool,
+          arguments: call.arguments,
+          result,
+          durationMs: Date.now() - toolStartedAt,
+        },
       });
 
       messages.push(
@@ -145,7 +241,11 @@ export class AgentRuntimeService {
         },
       );
 
-      answer = await this.llm.complete(messages);
+      answer = await this.completeWithTrace(
+        messages,
+        context,
+        `llm.after_tool.${iteration + 1}`,
+      );
     }
 
     if (agent.id === 'jorge') {
@@ -156,6 +256,11 @@ export class AgentRuntimeService {
         delegation.delegate !== 'jorge' &&
         this.registry.get(delegation.delegate)
       ) {
+        await this.trace(context, {
+          stage: 'agent.delegation',
+          message: 'La petición fue delegada a otro agente.',
+          data: delegation,
+        });
         const delegated = await this.chatAsAgent(
           `${sessionId}:delegate:${delegation.delegate}`,
           delegation.message?.trim() || userMessage,
@@ -178,12 +283,87 @@ export class AgentRuntimeService {
     session.updatedAt = new Date().toISOString();
     await this.redis.saveSession(session);
 
+    await this.trace(context, {
+      stage: 'session.saved',
+      message: 'La sesión fue persistida en Redis.',
+      data: {
+        sessionId,
+        agentId: agent.id,
+        messageCount: session.messages.length,
+        answer,
+      },
+    });
+
     return {
       sessionId,
       agent: agent.id,
       answer,
       messageCount: session.messages.length,
     };
+  }
+
+  private async completeWithTrace(
+    messages: LlmMessage[],
+    context: RuntimeInvocationContext,
+    stage: string,
+  ): Promise<string> {
+    const startedAt = Date.now();
+    await this.trace(context, {
+      stage: `${stage}.request`,
+      message: 'Solicitud enviada al proveedor LLM.',
+      data: {
+        messageCount: messages.length,
+        messages,
+      },
+    });
+
+    try {
+      const answer = await this.llm.complete(messages);
+      await this.trace(context, {
+        stage: `${stage}.response`,
+        message: 'Respuesta recibida del proveedor LLM.',
+        data: {
+          durationMs: Date.now() - startedAt,
+          answer,
+        },
+      });
+      return answer;
+    } catch (error) {
+      await this.trace(context, {
+        level: 'error',
+        stage: `${stage}.failed`,
+        message: 'Falló la solicitud al proveedor LLM.',
+        data: {
+          durationMs: Date.now() - startedAt,
+          error: this.errorMessage(error),
+        },
+      });
+      throw error;
+    }
+  }
+
+  private async trace(
+    context: RuntimeInvocationContext,
+    event: RuntimeTraceEvent,
+  ): Promise<void> {
+    if (context.executionId) {
+      await this.traces.event(
+        context.executionId,
+        event,
+        context.tenantId,
+      );
+    }
+
+    if (context.traceReporter) {
+      await context.traceReporter({
+        ...event,
+        createdAt: event.createdAt ?? new Date().toISOString(),
+      }).catch(() => undefined);
+    }
+  }
+
+  private errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
   }
 
   private parseDelegation(candidate: string): DelegationEnvelope | null {
