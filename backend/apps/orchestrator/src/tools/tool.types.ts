@@ -9,6 +9,7 @@ export interface ToolExecutionContext {
   executionId?: string;
   correlationId?: string;
   campaignId?: string;
+  campaignContext?: Record<string, unknown>;
 }
 
 export interface RuntimeToolDefinition {
