@@ -18,7 +18,7 @@ const commonItems = [
   { href: "/dashboard/agents", label: "Agentes", icon: Bot },
   { href: "/dashboard/providers", label: "Providers", icon: PlugZap },
   { href: "/dashboard/chat", label: "Conversación", icon: MessageSquareText },
-  { href: "/dashboard/runtime", label: "Runtime", icon: Network },
+  { href: "/dashboard/runtime", label: "Ejecuciones", icon: Network },
   { href: "/dashboard/security", label: "Seguridad", icon: ShieldCheck }
 ];
 
