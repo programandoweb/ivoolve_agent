@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { DeleteRuntimeExecutionButton } from "@/components/delete-runtime-execution-button";
 import { authenticatedBackendFetch, backendFetch } from "@/lib/backend";
 
 type Execution = {
@@ -171,6 +172,7 @@ export default async function RuntimePage({
                   <th className="px-5 py-3">Entrada</th>
                   <th className="px-5 py-3">Duración</th>
                   <th className="px-5 py-3">Fecha</th>
+                  <th className="px-5 py-3">Acción</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -208,6 +210,9 @@ export default async function RuntimePage({
                     </td>
                     <td className="px-5 py-4 text-zinc-500">
                       {new Date(item.startedAt).toLocaleString("es-CO")}
+                    </td>
+                    <td className="px-5 py-4">
+                      <DeleteRuntimeExecutionButton id={item.id} />
                     </td>
                   </tr>
                 ))}
