@@ -3,6 +3,7 @@ import { ProvidersService } from '../providers/providers.service';
 import { GoogleProspectingService } from './google-prospecting.service';
 import { ToolRegistryService } from './tool-registry.service';
 import { VideoGeneratorService } from './video-generator.service';
+import { SicClientService } from './sic-client.service';
 
 describe('ToolRegistryService', () => {
   const providers = {
@@ -23,6 +24,9 @@ describe('ToolRegistryService', () => {
     generate: jest.fn(),
     status: jest.fn(),
   };
+  const sic = {
+    upsertProspect: jest.fn(),
+  };
 
   let service: ToolRegistryService;
 
@@ -35,6 +39,7 @@ describe('ToolRegistryService', () => {
       approvals as unknown as ApprovalsService,
       googleProspecting as unknown as GoogleProspectingService,
       videoGenerator as unknown as VideoGeneratorService,
+      sic as unknown as SicClientService,
     );
   });
 
@@ -252,4 +257,115 @@ describe('ToolRegistryService', () => {
 
     expect(videoGenerator.generate).not.toHaveBeenCalled();
   });
+  it('serializa y persiste automáticamente resultados de Maps cuando la ejecución viene de SIC', async () => {
+    googleProspecting.searchPlaces.mockResolvedValue([
+      {
+        source: 'google_maps',
+        confidence: 'high',
+        placeId: 'place-1',
+        name: 'Empresa Uno',
+        formattedAddress: 'Pereira, Risaralda',
+        internationalPhoneNumber: '+573001112233',
+        websiteUri: 'https://empresa.example',
+        googleMapsUri: 'https://maps.google.com/?cid=1',
+        rating: 4.8,
+        userRatingCount: 21,
+        businessStatus: 'OPERATIONAL',
+        primaryType: 'software_company',
+      },
+    ]);
+    sic.upsertProspect.mockResolvedValue({
+      id: 'prospect-1',
+      name: 'Empresa Uno',
+    });
+
+    const result = await service.execute(
+      {
+        tool: 'prospecting.google_maps_search',
+        arguments: { query: 'software en Pereira', maxResults: 10 },
+      },
+      {
+        agentId: 'argos-prospector',
+        source: 'integration',
+        executionId: 'run-1',
+        campaignId: 'campaign-1',
+        campaignContext: {
+          city: 'Pereira',
+          department: 'Risaralda',
+          country: 'CO',
+        },
+      },
+    ) as Record<string, unknown>;
+
+    expect(sic.upsertProspect).toHaveBeenCalledWith(
+      'run-1',
+      expect.objectContaining({
+        name: 'Empresa Uno',
+        placeId: 'place-1',
+        city: 'Pereira',
+        department: 'Risaralda',
+        country: 'CO',
+        sourceType: 'google_maps',
+        rating: 4.8,
+        userRatingCount: 21,
+      }),
+    );
+    expect(result.persistence).toEqual(
+      expect.objectContaining({
+        mode: 'automatic',
+        executionId: 'run-1',
+        savedCount: 1,
+      }),
+    );
+  });
+
+  it('no persiste automáticamente búsquedas interactivas del chat', async () => {
+    googleProspecting.searchPlaces.mockResolvedValue([
+      {
+        source: 'google_maps',
+        confidence: 'high',
+        placeId: 'place-2',
+        name: 'Empresa Dos',
+      },
+    ]);
+
+    const result = await service.execute(
+      {
+        tool: 'prospecting.google_maps_search',
+        arguments: { query: 'software en Pereira' },
+      },
+      {
+        agentId: 'argos-prospector',
+        source: 'interactive',
+      },
+    ) as Record<string, unknown>;
+
+    expect(sic.upsertProspect).not.toHaveBeenCalled();
+    expect(result).not.toHaveProperty('persistence');
+  });
+
+  it('inyecta el executionId real de SIC y rechaza ids inventados', async () => {
+    sic.upsertProspect.mockResolvedValue({ id: 'prospect-3', name: 'Empresa Tres' });
+
+    await expect(
+      service.execute(
+        {
+          tool: 'sic.prospects.upsert',
+          arguments: {
+            executionId: 'run-inventado',
+            prospects: [{ name: 'Empresa Tres' }],
+          },
+        },
+        {
+          agentId: 'argos-prospector',
+          source: 'integration',
+          executionId: 'run-real',
+          campaignId: 'campaign-1',
+        },
+      ),
+    ).rejects.toThrow('no coincide');
+
+    expect(sic.upsertProspect).not.toHaveBeenCalled();
+  });
+
 });
