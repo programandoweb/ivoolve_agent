@@ -36,5 +36,6 @@ export interface RuntimeInvocationContext {
   executionId?: string;
   correlationId?: string;
   campaignId?: string;
+  campaignContext?: Record<string, unknown>;
   traceReporter?: (event: RuntimeTraceEvent) => Promise<void>;
 }
