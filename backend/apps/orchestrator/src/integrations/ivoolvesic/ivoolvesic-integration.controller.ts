@@ -10,6 +10,11 @@ class SicCampaignRunDto {
   @IsObject() context!: Record<string, unknown>;
 }
 
+class SicTestTaskDto {
+  @IsString() @MinLength(2) @MaxLength(120) agent_id!: string;
+  @IsString() @MinLength(1) @MaxLength(6000) message!: string;
+}
+
 @Controller('internal/v1/integrations/ivoolvesic')
 export class IvoolveSicIntegrationController {
   constructor(private readonly integration: IvoolveSicIntegrationService) {}
@@ -17,7 +22,6 @@ export class IvoolveSicIntegrationController {
   @Get('ping')
   ping(@Headers('authorization') authorization: string | undefined) {
     this.integration.assertServiceToken(authorization);
-
     return {
       status: 'ok',
       service: 'ivoolve-agent-orchestrator',
@@ -25,6 +29,15 @@ export class IvoolveSicIntegrationController {
       authenticated: true,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  @Post('test-task')
+  testTask(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: SicTestTaskDto,
+  ) {
+    this.integration.assertServiceToken(authorization);
+    return this.integration.testTask(dto.agent_id, dto.message);
   }
 
   @Post('campaign-runs')
