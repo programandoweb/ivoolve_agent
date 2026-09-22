@@ -20,9 +20,21 @@ export interface AgentDefinition {
   metadata?: AgentMetadata;
 }
 
+export interface RuntimeTraceEvent {
+  level?: 'debug' | 'info' | 'warning' | 'error';
+  stage: string;
+  message: string;
+  data?: unknown;
+  createdAt?: string;
+}
+
 export interface RuntimeInvocationContext {
   source: 'interactive' | 'provider' | 'delegation' | 'integration';
   actorRole?: UserRole;
   actorId?: string;
   tenantId?: string;
+  executionId?: string;
+  correlationId?: string;
+  campaignId?: string;
+  traceReporter?: (event: RuntimeTraceEvent) => Promise<void>;
 }
