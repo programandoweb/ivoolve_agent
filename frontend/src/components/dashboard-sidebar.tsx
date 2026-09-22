@@ -20,11 +20,11 @@ const commonItems = [
   { href: "/dashboard/providers", label: "Providers", icon: PlugZap },
   { href: "/dashboard/chat", label: "Conversación", icon: MessageSquareText },
   { href: "/dashboard/runtime", label: "Ejecuciones", icon: Network },
-  { href: "/dashboard/security", label: "Seguridad", icon: ShieldCheck },
-  { href: "/dashboard/system", label: "Sistema", icon: ServerCog }
+  { href: "/dashboard/security", label: "Seguridad", icon: ShieldCheck }
 ];
 
 const adminItems = [
+  { href: "/dashboard/system", label: "Sistema", icon: ServerCog },
   { href: "/dashboard/approvals", label: "Aprobaciones", icon: CheckSquare2 },
   { href: "/dashboard/access", label: "Accesos", icon: KeyRound }
 ];
