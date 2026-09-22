@@ -122,11 +122,11 @@ export class GoogleProspectingService {
     maxResults = 10,
   ): Promise<ProspectWebResult[]> {
     const apiKey = this.config.get<string>('GOOGLE_SEARCH_API_KEY')?.trim();
-    const cx = this.config.get<string>('GOOGLE_SEARCH_ENGINE_ID')?.trim();
+    const cx = this.config.get<string>('GOOGLE_SEARCH_ENGINE_ID')?.trim() || '878d7f5f2f1864a4d';
 
-    if (!apiKey || !cx) {
+    if (!apiKey) {
       throw new ServiceUnavailableException(
-        'GOOGLE_SEARCH_API_KEY y GOOGLE_SEARCH_ENGINE_ID deben estar configurados para Google Search.',
+        'GOOGLE_SEARCH_API_KEY debe estar configurada para Google Search.',
       );
     }
 
