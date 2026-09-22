@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { AutoRefresh } from "@/components/auto-refresh";
 import { authenticatedBackendFetch } from "@/lib/backend";
 
 type Execution = {
@@ -66,6 +67,7 @@ export default async function RuntimeExecutionDetailPage({
 
   return (
     <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <AutoRefresh intervalMs={3000} />
       <Link className="text-sm font-semibold text-violet-700 hover:underline" href="/dashboard/runtime">
         ← Volver al runtime
       </Link>
