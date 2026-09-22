@@ -97,24 +97,24 @@ export class AgentConversationStoreService {
       params.push(input.agentId);
     }
 
-    const sessions = await this.database.query<SessionRow[]>(
+    const sessions = (await this.database.query(
       `SELECT session_id, tenant_id, agent_id, actor_id, created_at, updated_at
        FROM agent_chat_sessions
        WHERE ${where}
        LIMIT 1`,
       params,
-    );
+    )) as SessionRow[];
     const session = sessions[0];
     if (!session) return null;
 
-    const rows = await this.database.query<MessageRow[]>(
+    const rows = (await this.database.query(
       `SELECT role, content, created_at
        FROM agent_chat_messages
        WHERE session_id = ?
        ORDER BY id ASC
        LIMIT 500`,
       [input.sessionId],
-    );
+    )) as MessageRow[];
 
     return {
       sessionId: session.session_id,
