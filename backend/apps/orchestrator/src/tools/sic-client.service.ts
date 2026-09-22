@@ -21,6 +21,10 @@ export class SicClientService {
     return this.post('internal/agent/campaign-runs/' + executionId + '/prospects', prospect);
   }
 
+  async trace(executionId: string, event: Record<string, unknown>): Promise<unknown> {
+    return this.post('internal/agent/campaign-runs/' + executionId + '/events', event);
+  }
+
   private async post(path: string, body: unknown): Promise<unknown> {
     const baseUrl = this.config.get<string>('IVOOLVE_SIC_BASE_URL')?.trim();
     const token = this.config.get<string>('IVOOLVE_SIC_INTERNAL_TOKEN')?.trim();
