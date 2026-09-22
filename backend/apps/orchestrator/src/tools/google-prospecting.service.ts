@@ -121,12 +121,12 @@ export class GoogleProspectingService {
     query: string,
     maxResults = 10,
   ): Promise<ProspectWebResult[]> {
-    const apiKey = this.config.get<string>('GOOGLE_SEARCH_API_KEY')?.trim();
+    const apiKey = this.config.get<string>('GOOGLE_SEARCH_API_KEY')?.trim() || this.config.get<string>('GOOGLE_MAPS_API_KEY')?.trim();
     const cx = this.config.get<string>('GOOGLE_SEARCH_ENGINE_ID')?.trim() || '878d7f5f2f1864a4d';
 
     if (!apiKey) {
       throw new ServiceUnavailableException(
-        'GOOGLE_SEARCH_API_KEY debe estar configurada para Google Search.',
+        'GOOGLE_SEARCH_API_KEY (o GOOGLE_MAPS_API_KEY con Custom Search JSON API habilitada) debe estar configurada para Google Search.',
       );
     }
 
