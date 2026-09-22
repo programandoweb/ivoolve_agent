@@ -15,6 +15,7 @@ import { AgentJobsController } from './agent-jobs.controller';
 import { ProviderMessageQueueBridge } from './provider-message.bridge';
 import { ProviderMessageProcessor } from './provider-message.processor';
 import { SicCampaignRunService } from './sic-campaign-run.service';
+import { SicResearchRunService } from './sic-research-run.service';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { SicCampaignRunService } from './sic-campaign-run.service';
     ProviderMessageQueueBridge,
     ProviderMessageProcessor,
     SicCampaignRunService,
+    SicResearchRunService,
   ],
   exports: [BullModule, AgentJobsService],
 })
