@@ -58,8 +58,38 @@ export class IvoolveSicIntegrationService {
   }
 
   async enqueueResearch(run: SicResearchRunPayload) {
-    const jobId = await this.jobs.enqueueSicResearchRun(run);
-    return { accepted: true, research_id: run.researchId, job_id: jobId };
+    await this.traces.start({
+      id: run.researchId,
+      agentId: run.agentId,
+      source: 'ivoolve_sic_research',
+      input: run,
+      metadata: {
+        integration: 'ivoolvesic',
+        prospectId: run.prospectId,
+        researchId: run.researchId,
+      },
+    });
+
+    try {
+      const jobId = await this.jobs.enqueueSicResearchRun(run);
+      await this.traces.event(run.researchId, {
+        stage: 'queue.enqueued',
+        message: 'La investigación fue encolada en BullMQ.',
+        data: {
+          jobId,
+          prospectId: run.prospectId,
+          agentId: run.agentId,
+        },
+      });
+      return { accepted: true, research_id: run.researchId, job_id: jobId };
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      await this.traces.finish(run.researchId, 'failed', {
+        stage: 'queue.failed',
+        error: reason,
+      });
+      throw error;
+    }
   }
 
   async enqueue(run: SicCampaignRunPayload) {
