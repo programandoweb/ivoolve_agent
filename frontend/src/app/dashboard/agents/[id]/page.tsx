@@ -61,12 +61,12 @@ export default async function AgentDetailPage({
         </p>
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-4 lg:h-[calc(100vh-11rem)] lg:grid-cols-2">
-        <div className="min-h-[620px] lg:min-h-0">
+      <div className="grid min-h-0 gap-4 lg:h-[540px] lg:grid-cols-2 xl:h-[580px]">
+        <div className="h-[540px] min-h-0 xl:h-[580px]">
           <AgentChat agentId={agent.id} contained />
         </div>
 
-        <section className="flex min-h-[620px] flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white lg:min-h-0">
+        <section className="flex h-[540px] min-h-0 flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white xl:h-[580px]">
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-zinc-100 px-5 py-4">
             <div>
               <h2 className="font-black text-zinc-950">Actividad reciente</h2>
