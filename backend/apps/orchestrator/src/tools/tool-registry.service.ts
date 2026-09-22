@@ -357,28 +357,6 @@ export class ToolRegistryService {
             });
             persistedEvidence += 1;
           }
-
-          if (result.reviewSummary) {
-            await this.sic.addResearchEvidence(context.researchId, {
-              url: result.googleMapsUri ?? '',
-              sourceType: 'google_maps_review_summary',
-              fetchedAt: new Date().toISOString(),
-              result: JSON.stringify({
-                reviewSummary: result.reviewSummary,
-                rating: result.rating,
-                userRatingCount: result.userRatingCount,
-              }),
-              extracted: {
-                placeId: result.placeId,
-                businessName: result.name,
-                rating: result.rating,
-                userRatingCount: result.userRatingCount,
-              },
-              summary: result.reviewSummary,
-              confidence: 0.9,
-            });
-            persistedEvidence += 1;
-          }
         }
 
         return {
