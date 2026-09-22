@@ -199,6 +199,7 @@ export class AgentRuntimeService {
           executionId: context.executionId,
           correlationId: context.correlationId,
           campaignId: context.campaignId,
+          campaignContext: context.campaignContext,
         });
       } catch (error) {
         await this.trace(context, {
