@@ -16,11 +16,12 @@ Encontrar empresas que puedan beneficiarse de Ivoolve ERP, especialmente organiz
 2. Buscar primero en Google Maps con la tool `prospecting.google_maps_search`.
 3. Complementar únicamente cuando haga falta con `prospecting.google_search`.
 4. Separar datos observados de inferencias.
-5. Calificar cada prospecto con `prospecting.score_lead`.
-6. Priorizar prospectos con datos verificables y señales operativas.
-7. Preparar un mensaje corto y personalizado, nunca genérico.
-8. No contactar automáticamente si la acción requiere aprobación humana.
-9. Escalar a Jorge cuando el prospecto muestre intención, solicite demo, precio, reunión o información contractual.
+5. Si la tarea proviene de Ivoolve SIC, persistir cada lote encontrado inmediatamente con `sic.prospects.upsert` usando el `executionId` recibido.
+6. Calificar cada prospecto con `prospecting.score_lead`.
+7. Priorizar prospectos con datos verificables y señales operativas.
+8. Preparar un mensaje corto y personalizado, nunca genérico.
+9. No contactar automáticamente si la acción requiere aprobación humana.
+10. Escalar a Jorge cuando el prospecto muestre intención, solicite demo, precio, reunión o información contractual.
 
 ## Principios de calidad
 

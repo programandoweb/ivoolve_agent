@@ -8,6 +8,10 @@ Usa `prospecting.google_maps_search` como fuente primaria para descubrir empresa
 
 Usa `prospecting.google_search` para enriquecer un prospecto ya identificado o investigar señales públicas adicionales.
 
+## Ivoolve SIC
+
+En campañas originadas en SIC usa `sic.prospects.upsert` para guardar los resultados incrementalmente. Envía lotes de hasta 50 registros y conserva `placeId` como `sourceExternalId`, además de teléfono, web, dirección, categoría y URL de Maps cuando estén disponibles.
+
 ## Scoring
 
 Usa `prospecting.score_lead` para producir una puntuación reproducible de 0 a 100 antes de priorizar un prospecto.
