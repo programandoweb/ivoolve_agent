@@ -6,6 +6,7 @@ import { AgentRuntimeService } from '../../agents/agent-runtime.service';
 import { ExecutionTraceService } from '../../database/execution-trace.service';
 import { AgentJobsService } from '../../queue/agent-jobs.service';
 import { SicCampaignRunPayload } from '../../queue/sic-campaign-run.types';
+import { SicResearchRunPayload } from '../../queue/sic-research-run.types';
 
 @Injectable()
 export class IvoolveSicIntegrationService {
@@ -54,6 +55,11 @@ export class IvoolveSicIntegrationService {
       });
       throw error;
     }
+  }
+
+  async enqueueResearch(run: SicResearchRunPayload) {
+    const jobId = await this.jobs.enqueueSicResearchRun(run);
+    return { accepted: true, research_id: run.researchId, job_id: jobId };
   }
 
   async enqueue(run: SicCampaignRunPayload) {
