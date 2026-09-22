@@ -63,7 +63,7 @@ Type=simple
 User=$USER_NAME
 Group=$GROUP_NAME
 WorkingDirectory=$APP_DIR
-EnvironmentFile=-$ENV_FILE
+Environment=DEPLOY_CONTROL_TOKEN=$TOKEN
 Environment=DEPLOY_APP_DIR=$APP_DIR
 Environment=DEPLOY_PROJECT=ivoolve-agent
 Environment=DEPLOY_CONTROL_PORT=$PORT
