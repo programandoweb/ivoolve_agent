@@ -20,7 +20,7 @@ done
 ensure_env() {
   local key="$1" value="$2"
   if grep -qE "^$key=" "$ENV_FILE"; then
-    python3 - "$ENV_FILE" "$key" "$value" <<'PY'
+    sudo python3 - "$ENV_FILE" "$key" "$value" <<'PY'
 from pathlib import Path
 import sys
 path=Path(sys.argv[1]); key=sys.argv[2]; value=sys.argv[3]
@@ -38,7 +38,7 @@ if not replaced:
 path.write_text("\n".join(out)+"\n")
 PY
   else
-    printf '\n%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+    printf '\n%s=%s\n' "$key" "$value" | sudo tee -a "$ENV_FILE" >/dev/null
   fi
 }
 
