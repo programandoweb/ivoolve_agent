@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, LoaderCircle, Rocket } from "lucide-react";
 
 type DeploymentStatus = {
@@ -68,12 +68,12 @@ export function DeploymentPanel() {
   };
 
   const running = data.status === "running";
-  const duration = useMemo(() => {
+  const duration = (() => {
     if (!data.startedAt) return "—";
     const end = data.finishedAt ? new Date(data.finishedAt).getTime() : Date.now();
     const seconds = Math.max(0, Math.round((end - new Date(data.startedAt).getTime()) / 1000));
     return seconds < 60 ? seconds + " s" : Math.floor(seconds / 60) + " min " + (seconds % 60) + " s";
-  }, [data.finishedAt, data.startedAt, data.status]);
+  })();
 
   return (
     <div className="space-y-6">
