@@ -4,6 +4,7 @@ import { Queue } from 'bullmq';
 
 import { NormalizedProviderMessage } from '../providers/provider-message.types';
 import { SicCampaignRunPayload } from './sic-campaign-run.types';
+import { SicResearchRunPayload } from './sic-research-run.types';
 
 export const AGENT_JOBS_QUEUE = 'agent-jobs';
 
@@ -37,6 +38,16 @@ export class AgentJobsService {
       removeOnComplete: true,
       removeOnFail: 500,
       jobId: 'sic-' + run.execution_id,
+    });
+    return job.id;
+  }
+
+  async enqueueSicResearchRun(run: SicResearchRunPayload): Promise<string | undefined> {
+    const job = await this.queue.add('sic-research-run', run, {
+      attempts: 1,
+      removeOnComplete: true,
+      removeOnFail: 500,
+      jobId: 'sic-research-' + run.researchId,
     });
     return job.id;
   }
