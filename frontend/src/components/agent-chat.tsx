@@ -13,6 +13,7 @@ import {
   BrainCircuit,
   CheckCircle2,
   Loader2,
+  MessageSquarePlus,
   Send,
   Server,
   Sparkles,
@@ -47,23 +48,35 @@ type AgentError = {
   message?: string;
 };
 
+type AgentHistory = {
+  sessionId?: string;
+  agentId?: string;
+  messages?: ChatMessage[];
+  error?: string;
+};
+
 type AgentChatProps = {
   mode?: "chat" | "builder";
   agentId?: string;
   contained?: boolean;
 };
 
+function sessionStorageKey(
+  mode: "chat" | "builder",
+  agentId?: string,
+): string {
+  return mode === "builder"
+    ? "ivoolve-agent-builder-session"
+    : agentId
+      ? `ivoolve-agent-session:${agentId}`
+      : "ivoolve-agent-session";
+}
+
 function getOrCreateSessionId(
   mode: "chat" | "builder",
   agentId?: string,
 ): string {
-  const storageKey =
-    mode === "builder"
-      ? "ivoolve-agent-builder-session"
-      : agentId
-        ? `ivoolve-agent-session:${agentId}`
-        : "ivoolve-agent-session";
-
+  const storageKey = sessionStorageKey(mode, agentId);
   const existing = window.localStorage.getItem(storageKey);
   if (existing) return existing;
 
@@ -86,14 +99,18 @@ export function AgentChat({ mode = "chat", agentId, contained = false }: AgentCh
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
+  const initialMessage = useMemo<ChatMessage>(
+    () => ({
       role: "assistant",
       content: isBuilder
         ? "Hola. Soy Jorge. Vamos a crear un agente conversando. Cuéntame primero qué agente necesitas y qué problema debe resolver."
-        : "Hola. Soy Jorge. Este chat mantiene un hilo Socket.IO abierto con NestJS."
-    }
-  ]);
+        : agentId
+          ? `Hola. Soy ${agentId}. Esta sesión se conserva hasta que inicies una nueva.`
+          : "Hola. Soy Jorge. Esta sesión se conserva hasta que inicies una nueva."
+    }),
+    [agentId, isBuilder]
+  );
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   useEffect(() => {
     const currentSessionId = getOrCreateSessionId(mode, agentId);
@@ -112,13 +129,34 @@ export function AgentChat({ mode = "chat", agentId, contained = false }: AgentCh
 
     socketRef.current = socket;
 
-    socket.on("connect", () => setSocketConnected(true));
+    socket.on("connect", () => {
+      setSocketConnected(true);
+      if (!isBuilder) {
+        socket.emit("agent:history:request", {
+          sessionId: currentSessionId,
+          agentId
+        });
+      }
+    });
     socket.on("disconnect", () => {
       setSocketConnected(false);
       setSending(false);
     });
 
     socket.on(`${eventPrefix}:processing`, () => setSending(true));
+
+    if (!isBuilder) {
+      socket.on("agent:history", (history: AgentHistory) => {
+        if (history.sessionId !== currentSessionId) return;
+        setMessages(
+          history.messages && history.messages.length > 0
+            ? history.messages
+            : [initialMessage]
+        );
+      });
+    } else {
+      setMessages([initialMessage]);
+    }
 
     socket.on(`${eventPrefix}:response`, (data: ChatResponse) => {
       setMessages((current) => [
@@ -163,7 +201,7 @@ export function AgentChat({ mode = "chat", agentId, contained = false }: AgentCh
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [agentId, eventPrefix, mode]);
+  }, [agentId, eventPrefix, initialMessage, isBuilder, mode]);
 
   const agentLabel = useMemo(
     () => (agents.length > 0 ? agents.join(", ") : fallback),
@@ -196,8 +234,20 @@ export function AgentChat({ mode = "chat", agentId, contained = false }: AgentCh
 
     socket.emit(`${eventPrefix}:message`, {
       sessionId,
-      message
+      message,
+      agentId
     });
+  }
+
+  function startNewSession() {
+    if (sending) return;
+
+    const created = crypto.randomUUID();
+    window.localStorage.setItem(sessionStorageKey(mode, agentId), created);
+    setSessionId(created);
+    setInput("");
+    setSending(false);
+    setMessages([initialMessage]);
   }
 
   function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -235,7 +285,22 @@ export function AgentChat({ mode = "chat", agentId, contained = false }: AgentCh
             </div>
           </div>
 
-          <StatusPill online={socketConnected} />
+          <div className="flex items-center gap-2">
+            {!isBuilder ? (
+              <button
+                type="button"
+                onClick={startNewSession}
+                disabled={sending}
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 transition hover:border-violet-300 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+                title="Iniciar una nueva sesión"
+                aria-label="Nueva sesión"
+              >
+                <MessageSquarePlus className="h-4 w-4" />
+                <span className="hidden sm:inline">Nueva sesión</span>
+              </button>
+            ) : null}
+            <StatusPill online={socketConnected} />
+          </div>
         </div>
       </div>
 
