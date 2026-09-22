@@ -25,7 +25,7 @@ export class AgentJobsService {
       },
       removeOnComplete: 200,
       removeOnFail: 500,
-      jobId: `provider:${message.providerId}:${message.messageId}`,
+      jobId: `provider-${message.providerId}-${message.messageId}`,
     });
 
     return job.id;
@@ -36,7 +36,7 @@ export class AgentJobsService {
       attempts: 1,
       removeOnComplete: true,
       removeOnFail: 500,
-      jobId: 'sic:' + run.execution_id,
+      jobId: 'sic-' + run.execution_id,
     });
     return job.id;
   }
