@@ -48,11 +48,20 @@ type Metrics = {
   }>;
 };
 
-export default async function RuntimePage() {
+export default async function RuntimePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ agentId?: string }>;
+}) {
+  const { agentId } = await searchParams;
+  const executionPath =
+    "/runtime/executions?limit=30" +
+    (agentId ? "&agentId=" + encodeURIComponent(agentId) : "");
+
   const [healthResponse, executionsResponse, jobsResponse, metricsResponse] =
     await Promise.all([
       backendFetch("/health"),
-      authenticatedBackendFetch("/runtime/executions?limit=30"),
+      authenticatedBackendFetch(executionPath),
       authenticatedBackendFetch("/runtime/jobs/stats"),
       authenticatedBackendFetch("/runtime/metrics")
     ]);
@@ -85,6 +94,11 @@ export default async function RuntimePage() {
       <h1 className="mt-2 text-3xl font-black text-zinc-950">
         Estado y ejecuciones
       </h1>
+      {agentId ? (
+        <p className="mt-2 text-sm font-semibold text-violet-700">
+          Filtrado por agente: {agentId}
+        </p>
+      ) : null}
       <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-600">
         Observa infraestructura, BullMQ, persistencia compartida y el recorrido
         de los mensajes que pasan desde un provider hacia los agentes.
