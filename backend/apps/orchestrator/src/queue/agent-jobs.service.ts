@@ -33,9 +33,8 @@ export class AgentJobsService {
 
   async enqueueSicCampaignRun(run: SicCampaignRunPayload): Promise<string | undefined> {
     const job = await this.queue.add('sic-campaign-run', run, {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 2_000 },
-      removeOnComplete: 200,
+      attempts: 1,
+      removeOnComplete: true,
       removeOnFail: 500,
       jobId: 'sic:' + run.execution_id,
     });

@@ -286,6 +286,17 @@ export class ToolRegistryService {
           saved.push(
             await this.sic.upsertProspect(executionId, {
               ...source,
+              address: source.address ?? source.formattedAddress,
+              phone:
+                source.phone ??
+                source.internationalPhoneNumber ??
+                source.nationalPhoneNumber,
+              website: source.website ?? source.websiteUri,
+              mapsUrl: source.mapsUrl ?? source.googleMapsUri,
+              category: source.category ?? source.primaryType,
+              sourceExternalId: source.sourceExternalId ?? source.placeId,
+              sourceUrl:
+                source.sourceUrl ?? source.googleMapsUri ?? source.mapsUrl,
               sourceType:
                 typeof source.sourceType === 'string'
                   ? source.sourceType

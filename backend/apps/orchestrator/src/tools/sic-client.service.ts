@@ -13,6 +13,10 @@ export class SicClientService {
     return this.post('internal/agent/campaign-runs/' + executionId + '/complete', result);
   }
 
+  async fail(executionId: string, error: string): Promise<unknown> {
+    return this.post('internal/agent/campaign-runs/' + executionId + '/fail', { error });
+  }
+
   async upsertProspect(executionId: string, prospect: Record<string, unknown>): Promise<unknown> {
     return this.post('internal/agent/campaign-runs/' + executionId + '/prospects', prospect);
   }
