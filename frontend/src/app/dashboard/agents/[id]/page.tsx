@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AgentChat } from "@/components/agent-chat";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { authenticatedBackendFetch } from "@/lib/backend";
 
 type AgentDetail = {
@@ -46,6 +47,7 @@ export default async function AgentDetailPage({
 
   return (
     <div className="flex min-h-[calc(100vh-2rem)] flex-col gap-4 px-4 py-4 lg:px-6">
+      <AutoRefresh intervalMs={4000} />
       <div className="rounded-3xl border border-zinc-200 bg-white px-5 py-4">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-600">
           {agent.source === "managed" ? "Agente gestionado" : "Agente core"}
@@ -63,7 +65,7 @@ export default async function AgentDetailPage({
           <div>
             <h2 className="font-black text-zinc-950">Actividad reciente</h2>
             <p className="mt-1 text-xs text-zinc-500">
-              Últimas ejecuciones registradas para este agente.
+              Últimas ejecuciones registradas para este agente. Esta vista se actualiza automáticamente cada 4 segundos.
             </p>
           </div>
           <Link
