@@ -170,6 +170,26 @@ export class AgentsGateway
       },
     });
 
+    if (
+      mode === 'chat' &&
+      effectiveAgent &&
+      effectiveAgent !== (requestedAgent || 'jorge')
+    ) {
+      await this.traces.event(
+        executionId,
+        {
+          stage: 'agent.routed',
+          message: 'La petición fue enrutada automáticamente al agente especialista.',
+          data: {
+            requestedAgent: requestedAgent || 'jorge',
+            effectiveAgent,
+            reason: 'commercial_prospecting_intent',
+          },
+        },
+        user.tenantId,
+      );
+    }
+
     client.emit(`${eventPrefix}:processing`, {
       sessionId,
       agent: effectiveAgent || 'jorge',
