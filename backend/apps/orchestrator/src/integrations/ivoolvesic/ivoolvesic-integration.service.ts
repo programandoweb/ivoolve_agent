@@ -1,7 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { timingSafeEqual } from 'crypto';
+import { randomUUID, timingSafeEqual } from 'crypto';
 
+import { AgentRuntimeService } from '../../agents/agent-runtime.service';
 import { ExecutionTraceService } from '../../database/execution-trace.service';
 import { AgentJobsService } from '../../queue/agent-jobs.service';
 import { SicCampaignRunPayload } from '../../queue/sic-campaign-run.types';
@@ -12,6 +13,7 @@ export class IvoolveSicIntegrationService {
     private readonly config: ConfigService,
     private readonly jobs: AgentJobsService,
     private readonly traces: ExecutionTraceService,
+    private readonly runtime: AgentRuntimeService,
   ) {}
 
   assertServiceToken(authorization?: string): void {
@@ -23,6 +25,37 @@ export class IvoolveSicIntegrationService {
     if (a.length !== b.length || !timingSafeEqual(a, b)) throw new UnauthorizedException();
   }
 
+  async testTask(agentId: string, message: string) {
+    const executionId = randomUUID();
+    const sessionId = `sic-test-${executionId}`;
+
+    await this.traces.start({
+      id: executionId,
+      agentId,
+      source: 'ivoolve_sic_test',
+      input: { message },
+      metadata: { integration: 'ivoolvesic', test: true },
+    });
+
+    try {
+      const result = await this.runtime.chatAsAgent(sessionId, message, agentId, {
+        source: 'integration',
+        executionId,
+      });
+      await this.traces.finish(executionId, 'completed', {
+        stage: 'completed',
+        output: result,
+      });
+      return { executionId, ...result };
+    } catch (error) {
+      await this.traces.finish(executionId, 'failed', {
+        stage: 'failed',
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
   async enqueue(run: SicCampaignRunPayload) {
     await this.traces.start({
       id: run.execution_id,
@@ -31,9 +64,7 @@ export class IvoolveSicIntegrationService {
       correlationId: run.correlation_id,
       campaignId: run.campaign_id,
       input: run,
-      metadata: {
-        integration: 'ivoolvesic',
-      },
+      metadata: { integration: 'ivoolvesic' },
     });
 
     try {
