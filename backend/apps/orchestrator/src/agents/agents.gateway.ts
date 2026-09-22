@@ -146,17 +146,22 @@ export class AgentsGateway
     const runtimeSessionId = `tenant:${user.tenantId}:${sessionId}`;
 
     const requestedAgent = payload?.agentId?.trim().toLowerCase();
+    const effectiveAgent =
+      mode === 'chat'
+        ? this.resolveEffectiveAgent(requestedAgent, message)
+        : requestedAgent;
 
     const executionId = this.traces.newId(mode === 'builder' ? 'builder' : 'chat');
     await this.traces.start({
       id: executionId,
       tenantId: user.tenantId,
-      agentId: requestedAgent || (mode === 'builder' ? 'agent-builder' : 'jorge'),
+      agentId: effectiveAgent || (mode === 'builder' ? 'agent-builder' : 'jorge'),
       source: mode === 'builder' ? 'interactive_builder' : 'interactive',
       input: {
         sessionId,
         message,
         requestedAgent,
+        effectiveAgent,
         mode,
       },
       metadata: {
@@ -167,7 +172,7 @@ export class AgentsGateway
 
     client.emit(`${eventPrefix}:processing`, {
       sessionId,
-      agent: requestedAgent || 'jorge',
+      agent: effectiveAgent || 'jorge',
       executionId,
     });
 
@@ -175,8 +180,8 @@ export class AgentsGateway
       const result =
         mode === 'builder'
           ? await this.builder.chat(runtimeSessionId, message)
-          : requestedAgent
-            ? await this.runtime.chatAsAgent(runtimeSessionId, message, requestedAgent, {
+          : effectiveAgent
+            ? await this.runtime.chatAsAgent(runtimeSessionId, message, effectiveAgent, {
                 source: 'interactive',
                 actorId: user.id,
                 actorRole: user.role,
@@ -222,5 +227,33 @@ export class AgentsGateway
         message: detail,
       });
     }
+  }
+
+  private resolveEffectiveAgent(
+    requestedAgent: string | undefined,
+    message: string,
+  ): string | undefined {
+    const entryAgent = requestedAgent || 'jorge';
+    if (entryAgent !== 'jorge') return requestedAgent;
+
+    const normalized = message
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
+    const discoveryIntent =
+      /\b(busca|buscar|buscame|encuentra|encontrar|encuentrame|localiza|localizar|prospecta|prospectar|consigue|conseguir|investiga|investigar)\b/.test(
+        normalized,
+      );
+    const businessTarget =
+      /\b(empresa|empresas|negocio|negocios|prospecto|prospectos|cliente|clientes|proveedor|proveedores|boutique|boutiques|compania|companias)\b/.test(
+        normalized,
+      );
+
+    if (discoveryIntent && businessTarget) {
+      return 'argos-prospector';
+    }
+
+    return requestedAgent;
   }
 }
