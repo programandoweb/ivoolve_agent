@@ -331,7 +331,7 @@ export function AgentChat({ mode = "chat", agentId, contained = false }: AgentCh
         ref={messagesContainerRef}
         className={
           isBuilder || contained
-            ? "min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5"
+            ? "min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 py-3 sm:px-4"
             : "h-[500px] space-y-4 overflow-y-auto px-4 py-6 sm:px-6"
         }
       >
@@ -345,8 +345,8 @@ export function AgentChat({ mode = "chat", agentId, contained = false }: AgentCh
             <div
               className={
                 message.role === "user"
-                  ? "max-w-[88%] whitespace-pre-wrap rounded-3xl rounded-br-lg bg-zinc-950 px-4 py-3 text-sm leading-6 text-white sm:max-w-[80%]"
-                  : "max-w-[92%] whitespace-pre-wrap rounded-3xl rounded-bl-lg bg-violet-50 px-4 py-3 text-sm leading-6 text-zinc-800 sm:max-w-[82%]"
+                  ? "max-w-[88%] whitespace-pre-wrap break-words rounded-3xl rounded-br-lg bg-zinc-950 px-4 py-3 text-sm leading-6 text-white sm:max-w-[80%]"
+                  : "max-w-[92%] whitespace-pre-wrap break-words rounded-3xl rounded-bl-lg bg-violet-50 px-4 py-3 text-sm leading-6 text-zinc-800 sm:max-w-[82%]"
               }
             >
               {message.content}
