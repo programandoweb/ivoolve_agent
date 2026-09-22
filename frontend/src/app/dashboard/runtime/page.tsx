@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { authenticatedBackendFetch, backendFetch } from "@/lib/backend";
 
 type Execution = {
@@ -88,11 +89,12 @@ export default async function RuntimePage({
 
   return (
     <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <AutoRefresh intervalMs={4000} />
       <p className="text-sm font-bold uppercase tracking-[0.2em] text-violet-600">
         Runtime
       </p>
       <h1 className="mt-2 text-3xl font-black text-zinc-950">
-        Estado y ejecuciones
+        Ejecuciones y runtime
       </h1>
       {agentId ? (
         <p className="mt-2 text-sm font-semibold text-violet-700">
@@ -100,8 +102,8 @@ export default async function RuntimePage({
         </p>
       ) : null}
       <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-600">
-        Observa infraestructura, BullMQ, persistencia compartida y el recorrido
-        de los mensajes que pasan desde un provider hacia los agentes.
+        Observa en vivo las peticiones que llegan, su paso por BullMQ, el agente asignado,
+        las tools ejecutadas, errores y resultado final.
       </p>
 
       {metrics.alerts.length > 0 && (
