@@ -10,6 +10,7 @@ import {
   RuntimeTraceEvent,
 } from './agent.types';
 import { AgentRegistryService } from './agent-registry.service';
+import { AgentConversationStoreService } from './agent-conversation-store.service';
 
 interface DelegationEnvelope {
   delegate: string;
@@ -24,6 +25,7 @@ export class AgentRuntimeService {
     private readonly llm: LlmService,
     private readonly tools: ToolRegistryService,
     private readonly traces: ExecutionTraceService,
+    private readonly conversations: AgentConversationStoreService,
   ) {}
 
   async chat(
@@ -83,7 +85,30 @@ export class AgentRuntimeService {
       },
     });
 
-    const existing = await this.redis.getSession(sessionId);
+    await this.conversations.ensureSession({
+      sessionId,
+      tenantId: context.tenantId,
+      agentId: agent.id,
+      actorId: context.actorId,
+    });
+
+    const cached = await this.redis.getSession(sessionId);
+    const durable = await this.conversations.loadSession({
+      sessionId,
+      tenantId: context.tenantId,
+      agentId: agent.id,
+    });
+
+    // Redis acelera la conversación activa; MariaDB conserva la sesión de forma
+    // durable. Si venimos de una sesión antigua que solo estaba en Redis,
+    // migramos los mensajes faltantes a la persistencia durable.
+    if (cached && durable && cached.messages.length > durable.messages.length) {
+      for (const message of cached.messages.slice(durable.messages.length)) {
+        await this.conversations.appendMessage(sessionId, message);
+      }
+    }
+
+    const existing = cached ?? durable;
     const session: AgentSession =
       existing ??
       ({
@@ -95,11 +120,13 @@ export class AgentRuntimeService {
 
     session.activeAgent = agent.id;
 
-    session.messages.push({
-      role: 'user',
+    const userEntry = {
+      role: 'user' as const,
       content: userMessage,
       createdAt: new Date().toISOString(),
-    });
+    };
+    session.messages.push(userEntry);
+    await this.conversations.appendMessage(sessionId, userEntry);
 
     await this.trace(context, {
       stage: 'session.loaded',
@@ -275,11 +302,13 @@ export class AgentRuntimeService {
       }
     }
 
-    session.messages.push({
-      role: 'assistant',
+    const assistantEntry = {
+      role: 'assistant' as const,
       content: answer,
       createdAt: new Date().toISOString(),
-    });
+    };
+    session.messages.push(assistantEntry);
+    await this.conversations.appendMessage(sessionId, assistantEntry);
 
     session.updatedAt = new Date().toISOString();
     await this.redis.saveSession(session);
@@ -301,6 +330,25 @@ export class AgentRuntimeService {
       answer,
       messageCount: session.messages.length,
     };
+  }
+
+  async getConversation(
+    sessionId: string,
+    agentId: string,
+    tenantId?: string,
+  ): Promise<AgentSession | null> {
+    const cached = await this.redis.getSession(sessionId);
+    if (cached) return cached;
+
+    const durable = await this.conversations.loadSession({
+      sessionId,
+      tenantId,
+      agentId,
+    });
+    if (!durable) return null;
+
+    await this.redis.saveSession(durable);
+    return durable;
   }
 
   private async completeWithTrace(
