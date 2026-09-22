@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { authenticatedBackendFetch, backendFetch } from "@/lib/backend";
 
 type Execution = {
@@ -5,6 +6,10 @@ type Execution = {
   providerId?: string;
   conversationId?: string;
   agentId?: string;
+  source?: string;
+  correlationId?: string;
+  campaignId?: string;
+  currentStage?: string;
   status: string;
   inputPreview?: string;
   outputPreview?: string;
@@ -142,8 +147,10 @@ export default async function RuntimePage() {
             <table className="w-full min-w-[900px] text-left text-sm">
               <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-400">
                 <tr>
+                  <th className="px-5 py-3">Ejecución</th>
                   <th className="px-5 py-3">Estado</th>
                   <th className="px-5 py-3">Agente</th>
+                  <th className="px-5 py-3">Etapa</th>
                   <th className="px-5 py-3">Provider</th>
                   <th className="px-5 py-3">Entrada</th>
                   <th className="px-5 py-3">Duración</th>
@@ -154,10 +161,21 @@ export default async function RuntimePage() {
                 {executions.items.map((item) => (
                   <tr key={item.id} className="align-top">
                     <td className="px-5 py-4">
+                      <Link
+                        className="font-mono text-xs font-semibold text-violet-700 hover:underline"
+                        href={"/dashboard/runtime/" + encodeURIComponent(item.id)}
+                      >
+                        {item.id}
+                      </Link>
+                    </td>
+                    <td className="px-5 py-4">
                       <Status status={item.status} />
                     </td>
                     <td className="px-5 py-4 font-semibold text-zinc-800">
                       {item.agentId ?? "—"}
+                    </td>
+                    <td className="max-w-[220px] px-5 py-4 text-zinc-500">
+                      {item.currentStage ?? "—"}
                     </td>
                     <td className="max-w-[180px] truncate px-5 py-4 text-zinc-500">
                       {item.providerId ?? "—"}
