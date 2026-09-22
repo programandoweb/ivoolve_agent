@@ -1,6 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { timingSafeEqual } from 'crypto';
+
+import { ExecutionTraceService } from '../../database/execution-trace.service';
 import { AgentJobsService } from '../../queue/agent-jobs.service';
 import { SicCampaignRunPayload } from '../../queue/sic-campaign-run.types';
 
@@ -9,6 +11,7 @@ export class IvoolveSicIntegrationService {
   constructor(
     private readonly config: ConfigService,
     private readonly jobs: AgentJobsService,
+    private readonly traces: ExecutionTraceService,
   ) {}
 
   assertServiceToken(authorization?: string): void {
@@ -21,7 +24,33 @@ export class IvoolveSicIntegrationService {
   }
 
   async enqueue(run: SicCampaignRunPayload) {
-    const jobId = await this.jobs.enqueueSicCampaignRun(run);
-    return { accepted: true, execution_id: run.execution_id, job_id: jobId };
+    await this.traces.start({
+      id: run.execution_id,
+      agentId: run.agent_id,
+      source: 'ivoolve_sic',
+      correlationId: run.correlation_id,
+      campaignId: run.campaign_id,
+      input: run,
+      metadata: {
+        integration: 'ivoolvesic',
+      },
+    });
+
+    try {
+      const jobId = await this.jobs.enqueueSicCampaignRun(run);
+      await this.traces.event(run.execution_id, {
+        stage: 'queue.enqueued',
+        message: 'La ejecución fue encolada en BullMQ.',
+        data: { jobId },
+      });
+      return { accepted: true, execution_id: run.execution_id, job_id: jobId };
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      await this.traces.finish(run.execution_id, 'failed', {
+        stage: 'queue.failed',
+        error: reason,
+      });
+      throw error;
+    }
   }
 }
