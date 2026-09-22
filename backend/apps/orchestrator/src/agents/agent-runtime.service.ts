@@ -117,7 +117,8 @@ export class AgentRuntimeService {
 
     let answer = await this.llm.complete(messages);
 
-    for (let iteration = 0; iteration < 3; iteration += 1) {
+    const maxToolIterations = context.source === 'integration' ? 20 : 3;
+    for (let iteration = 0; iteration < maxToolIterations; iteration += 1) {
       const call = this.tools.parse(answer);
       if (!call) break;
 

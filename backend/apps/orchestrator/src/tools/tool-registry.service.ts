@@ -9,6 +9,7 @@ import { ApprovalsService } from '../approvals/approvals.service';
 import { ProvidersService } from '../providers/providers.service';
 import { GoogleProspectingService } from './google-prospecting.service';
 import { VideoGeneratorService } from './video-generator.service';
+import { SicClientService } from './sic-client.service';
 import {
   RuntimeToolDefinition,
   ToolCallEnvelope,
@@ -22,6 +23,7 @@ export class ToolRegistryService {
     private readonly approvals: ApprovalsService,
     private readonly googleProspecting: GoogleProspectingService,
     private readonly videoGenerator: VideoGeneratorService,
+    private readonly sic: SicClientService,
   ) {}
 
   definitions(): RuntimeToolDefinition[] {
@@ -87,6 +89,15 @@ export class ToolRegistryService {
           'Consulta el estado de un job de generación de video y devuelve la URL del MP4 cuando termina.',
         arguments: {
           jobId: 'ID devuelto por video.generate',
+        },
+      },
+      {
+        name: 'sic.prospects.upsert',
+        description:
+          'Persiste en Ivoolve SIC un lote de prospectos encontrado durante una campaña externa. SIC deduplica y conserva la fuente de verdad.',
+        arguments: {
+          executionId: 'UUID de ejecución entregado por SIC',
+          prospects: 'Array de prospectos. Cada item debe incluir name y datos verificables disponibles.',
         },
       },
       {
@@ -253,6 +264,36 @@ export class ToolRegistryService {
       case 'video.status': {
         const jobId = this.requiredString(call, 'jobId');
         return this.videoGenerator.status(jobId);
+      }
+
+      case 'sic.prospects.upsert': {
+        const executionId = this.requiredString(call, 'executionId');
+        const prospects = call.arguments?.prospects;
+        if (!Array.isArray(prospects) || prospects.length < 1 || prospects.length > 50) {
+          throw new BadRequestException(
+            'La tool "sic.prospects.upsert" requiere entre 1 y 50 prospectos.',
+          );
+        }
+        const saved: unknown[] = [];
+        for (const item of prospects) {
+          if (!item || typeof item !== 'object' || Array.isArray(item)) {
+            throw new BadRequestException('Cada prospecto debe ser un objeto.');
+          }
+          const source = item as Record<string, unknown>;
+          if (typeof source.name !== 'string' || !source.name.trim()) {
+            throw new BadRequestException('Cada prospecto requiere name.');
+          }
+          saved.push(
+            await this.sic.upsertProspect(executionId, {
+              ...source,
+              sourceType:
+                typeof source.sourceType === 'string'
+                  ? source.sourceType
+                  : 'google_maps',
+            }),
+          );
+        }
+        return { savedCount: saved.length, prospects: saved };
       }
 
       case 'prospecting.score_lead': {
