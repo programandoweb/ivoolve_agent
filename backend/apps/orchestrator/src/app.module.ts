@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { IvoolveOpsIntegrationModule } from './integrations/ivoolveops/ivoolveops-integration.module';
+import { IvoolveSicIntegrationModule } from './integrations/ivoolvesic/ivoolvesic-integration.module';
 import { LlmModule } from './llm/llm.module';
 import { ProvidersModule } from './providers/providers.module';
 import { AgentQueueModule } from './queue/agent-queue.module';
@@ -27,6 +28,7 @@ import { RedisModule } from './state/redis.module';
     AgentQueueModule,
     HealthModule,
     IvoolveOpsIntegrationModule,
+    IvoolveSicIntegrationModule,
   ],
 })
 export class AppModule {}

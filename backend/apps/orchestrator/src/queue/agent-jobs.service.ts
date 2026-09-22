@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';
 
 import { NormalizedProviderMessage } from '../providers/provider-message.types';
+import { SicCampaignRunPayload } from './sic-campaign-run.types';
 
 export const AGENT_JOBS_QUEUE = 'agent-jobs';
 
@@ -27,6 +28,17 @@ export class AgentJobsService {
       jobId: `provider:${message.providerId}:${message.messageId}`,
     });
 
+    return job.id;
+  }
+
+  async enqueueSicCampaignRun(run: SicCampaignRunPayload): Promise<string | undefined> {
+    const job = await this.queue.add('sic-campaign-run', run, {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 2_000 },
+      removeOnComplete: 200,
+      removeOnFail: 500,
+      jobId: 'sic:' + run.execution_id,
+    });
     return job.id;
   }
 

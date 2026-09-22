@@ -20,7 +20,7 @@ export interface AgentDefinition {
 }
 
 export interface RuntimeInvocationContext {
-  source: 'interactive' | 'provider' | 'delegation';
+  source: 'interactive' | 'provider' | 'delegation' | 'integration';
   actorRole?: UserRole;
   actorId?: string;
   tenantId?: string;

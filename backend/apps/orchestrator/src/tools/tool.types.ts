@@ -2,7 +2,7 @@ import type { UserRole } from '../auth/auth.types';
 
 export interface ToolExecutionContext {
   agentId: string;
-  source: 'interactive' | 'provider' | 'delegation';
+  source: 'interactive' | 'provider' | 'delegation' | 'integration';
   actorRole?: UserRole;
   actorId?: string;
   tenantId?: string;

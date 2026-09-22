@@ -3,6 +3,8 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { AuthModule } from '../auth/auth.module';
+import { AgentsModule } from '../agents/agents.module';
+import { ToolsModule } from '../tools/tools.module';
 import { ProvidersModule } from '../providers/providers.module';
 import { RuntimeModule } from '../runtime/runtime.module';
 import {
@@ -12,10 +14,13 @@ import {
 import { AgentJobsController } from './agent-jobs.controller';
 import { ProviderMessageQueueBridge } from './provider-message.bridge';
 import { ProviderMessageProcessor } from './provider-message.processor';
+import { SicCampaignRunService } from './sic-campaign-run.service';
 
 @Module({
   imports: [
     AuthModule,
+    AgentsModule,
+    ToolsModule,
     ProvidersModule,
     RuntimeModule,
     BullModule.forRootAsync({
@@ -44,6 +49,7 @@ import { ProviderMessageProcessor } from './provider-message.processor';
     AgentJobsService,
     ProviderMessageQueueBridge,
     ProviderMessageProcessor,
+    SicCampaignRunService,
   ],
   exports: [BullModule, AgentJobsService],
 })
