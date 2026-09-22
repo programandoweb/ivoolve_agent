@@ -25,6 +25,18 @@ export class SicClientService {
     return this.post('internal/agent/campaign-runs/' + executionId + '/events', event);
   }
 
+  async addResearchEvidence(researchId: string, evidence: Record<string, unknown>): Promise<unknown> {
+    return this.post('internal/orchestration/research/' + researchId + '/evidence', evidence);
+  }
+
+  async completeResearch(researchId: string, profile: Record<string, unknown>): Promise<unknown> {
+    return this.post('internal/orchestration/research/' + researchId + '/complete', profile);
+  }
+
+  async failResearch(researchId: string, error: string): Promise<unknown> {
+    return this.post('internal/orchestration/research/' + researchId + '/fail', { error });
+  }
+
   private async post(path: string, body: unknown): Promise<unknown> {
     const baseUrl = this.config.get<string>('IVOOLVE_SIC_BASE_URL')?.trim();
     const token = this.config.get<string>('IVOOLVE_SIC_INTERNAL_TOKEN')?.trim();
