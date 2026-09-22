@@ -6,6 +6,9 @@ export interface ToolExecutionContext {
   actorRole?: UserRole;
   actorId?: string;
   tenantId?: string;
+  executionId?: string;
+  correlationId?: string;
+  campaignId?: string;
 }
 
 export interface RuntimeToolDefinition {
