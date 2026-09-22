@@ -198,6 +198,61 @@ export class ExecutionLogStore {
     };
   }
 
+  async delete(id: string, tenantId?: string): Promise<boolean> {
+    if (this.database.enabled) {
+      const filters = ['id = ?'];
+      const params: string[] = [id];
+      if (tenantId) {
+        filters.push('tenant_id = ?');
+        params.push(tenantId);
+      }
+
+      await this.database.execute(
+        `DELETE FROM runtime_execution_events
+          WHERE execution_id = ?
+            ${tenantId ? 'AND tenant_id = ?' : ''}`,
+        tenantId ? [id, tenantId] : [id],
+      );
+
+      const result = await this.database.execute(
+        `DELETE FROM runtime_executions WHERE ${filters.join(' AND ')}`,
+        params,
+      );
+
+      const affectedRows =
+        typeof result === 'object' && result !== null && 'affectedRows' in result
+          ? Number((result as { affectedRows?: number }).affectedRows ?? 0)
+          : 0;
+      return affectedRows > 0;
+    }
+
+    try {
+      const path = this.path();
+      const raw = await fs.readFile(path, 'utf8');
+      const items = raw
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line) as RuntimeExecutionRecord);
+
+      const filtered = items.filter((item) => {
+        if (item.id !== id) return true;
+        if (tenantId && item.tenantId !== tenantId) return true;
+        return false;
+      });
+      if (filtered.length === items.length) return false;
+
+      await fs.writeFile(
+        path,
+        filtered.map((item) => JSON.stringify(item)).join('\n') + (filtered.length ? '\n' : ''),
+        'utf8',
+      );
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+      throw error;
+    }
+  }
+
   private normalizeRow(row: ExecutionRow): RuntimeExecutionRecord {
     const parsed = JSON.parse(row.record_json) as RuntimeExecutionRecord;
     return {
