@@ -1,5 +1,6 @@
 import {
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
@@ -57,6 +58,19 @@ export class RuntimeController {
       throw new NotFoundException('Ejecución inexistente.');
     }
     return detail;
+  }
+
+  @Delete('executions/:id')
+  async remove(
+    @Req() request: AuthRequest,
+    @Param('id') id: string,
+  ) {
+    const tenantId = request.user?.tenantId ?? 'default';
+    const deleted = await this.executions.delete(id, tenantId);
+    if (!deleted) {
+      throw new NotFoundException('Ejecución inexistente.');
+    }
+    return { ok: true, id };
   }
 
   @Get('metrics')
