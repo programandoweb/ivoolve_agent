@@ -465,7 +465,6 @@ export class ToolRegistryService {
       userRatingCount: source.userRatingCount,
       businessStatus: source.businessStatus,
       searchQuery: query,
-      capturedAt: new Date().toISOString(),
     };
   }
 
