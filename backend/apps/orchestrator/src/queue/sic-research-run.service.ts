@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { AgentRuntimeService } from '../agents/agent-runtime.service';
+import { ExecutionTraceService } from '../database/execution-trace.service';
 import { SicClientService } from '../tools/sic-client.service';
 import { SicResearchRunPayload } from './sic-research-run.types';
 
@@ -9,9 +10,19 @@ export class SicResearchRunService {
   constructor(
     private readonly runtime: AgentRuntimeService,
     private readonly sic: SicClientService,
+    private readonly traces: ExecutionTraceService,
   ) {}
 
   async handle(run: SicResearchRunPayload): Promise<void> {
+    await this.traces.event(run.researchId, {
+      stage: 'worker.started',
+      message: 'BullMQ inició la investigación del prospecto.',
+      data: {
+        prospectId: run.prospectId,
+        agentId: run.agentId,
+      },
+    });
+
     const prompt = [
       'Investiga a fondo este prospecto existente en Ivoolve SIC.',
       'Research ID: ' + run.researchId,
@@ -41,6 +52,7 @@ export class SicResearchRunService {
         run.agentId || 'hermes-researcher',
         {
           source: 'integration',
+          executionId: run.researchId,
           researchId: run.researchId,
           prospectId: run.prospectId,
           campaignContext: {
@@ -61,10 +73,27 @@ export class SicResearchRunService {
         unknowns: [],
         recommendedNextStep: 'Revisar evidencias persistidas por Hermes.',
       });
+
+      await this.traces.finish(run.researchId, 'completed', {
+        stage: 'completed',
+        output: result,
+        metadata: {
+          prospectId: run.prospectId,
+          researchId: run.researchId,
+        },
+      });
     } catch (error) {
       const reason =
         error instanceof Error ? error.message : 'unknown_research_agent_error';
       await this.sic.failResearch(run.researchId, reason).catch(() => undefined);
+      await this.traces.finish(run.researchId, 'failed', {
+        stage: 'failed',
+        error: reason,
+        metadata: {
+          prospectId: run.prospectId,
+          researchId: run.researchId,
+        },
+      });
       throw error;
     }
   }
