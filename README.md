@@ -192,6 +192,19 @@ LLM_BASE_URL=http://host.docker.internal:1234/v1
 
 Si utilizas otra URL, VPN o endpoint compatible OpenAI, cámbiala en `.env`.
 
+## Despliegue en VPS desde consola
+
+Con el repositorio ya clonado y `.env` configurado:
+
+```bash
+cd /home/ubuntu/contenedores/ivoolve_agent
+bash deploy.sh
+```
+
+El script sincroniza `origin/main`, valida Docker, levanta MariaDB/Redis, construye backend/frontend, ejecuta un script `npm migrate` si el proyecto lo incorpora en el futuro y, con la arquitectura actual, garantiza `DATABASE_AUTO_MIGRATE=true` para que NestJS actualice automáticamente su esquema durable al iniciar. Finalmente recrea los servicios y valida `/health` y `/login`.
+
+> El despliegue usa `git reset --hard origin/main`; no debe haber cambios locales de código sin versionar en el VPS.
+
 ## Inicio local
 
 Backend:
