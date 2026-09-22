@@ -1,6 +1,8 @@
 import {
   Controller,
   Get,
+  NotFoundException,
+  Param,
   Query,
   Req,
   UseGuards,
@@ -26,12 +28,14 @@ export class RuntimeController {
   async recent(
     @Req() request: AuthRequest,
     @Query('limit') limit?: string,
+    @Query('agentId') agentId?: string,
   ) {
     const parsed = Number(limit ?? 100);
     const tenantId = request.user?.tenantId ?? 'default';
     const items = await this.executions.recent(
       Number.isFinite(parsed) ? parsed : 100,
       tenantId,
+      agentId?.trim() || undefined,
     );
 
     return {
@@ -40,6 +44,19 @@ export class RuntimeController {
       failed: items.filter((item) => item.status === 'failed').length,
       completed: items.filter((item) => item.status === 'completed').length,
     };
+  }
+
+  @Get('executions/:id')
+  async detail(
+    @Req() request: AuthRequest,
+    @Param('id') id: string,
+  ) {
+    const tenantId = request.user?.tenantId ?? 'default';
+    const detail = await this.executions.detail(id, tenantId);
+    if (!detail) {
+      throw new NotFoundException('Ejecución inexistente.');
+    }
+    return detail;
   }
 
   @Get('metrics')
