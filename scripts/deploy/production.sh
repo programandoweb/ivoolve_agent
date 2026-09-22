@@ -44,10 +44,6 @@ fi
 
 [[ -f .env ]] || fail "Falta $APP_DIR/.env"
 
-if [[ "${IVOOLVE_DEPLOY_CONTROL_REQUEST:-0}" != "1" ]]; then
-  log "Instalando/actualizando control de despliegue web"
-  IVOOLVE_AGENT_APP_DIR="$APP_DIR" bash "$APP_DIR/scripts/deploy/install-control.sh"
-fi
 
 DATABASE_AUTO_MIGRATE="$(grep -E '^DATABASE_AUTO_MIGRATE=' .env | tail -1 | cut -d= -f2- || true)"
 DATABASE_AUTO_MIGRATE="${DATABASE_AUTO_MIGRATE:-true}"
