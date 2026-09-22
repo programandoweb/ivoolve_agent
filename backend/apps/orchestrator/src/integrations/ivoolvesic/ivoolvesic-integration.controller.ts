@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Post } from '@nestjs/common';
 import { IsObject, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import { IvoolveSicIntegrationService } from './ivoolvesic-integration.service';
 
@@ -13,6 +13,19 @@ class SicCampaignRunDto {
 @Controller('internal/v1/integrations/ivoolvesic')
 export class IvoolveSicIntegrationController {
   constructor(private readonly integration: IvoolveSicIntegrationService) {}
+
+  @Get('ping')
+  ping(@Headers('authorization') authorization: string | undefined) {
+    this.integration.assertServiceToken(authorization);
+
+    return {
+      status: 'ok',
+      service: 'ivoolve-agent-orchestrator',
+      integration: 'ivoolvesic',
+      authenticated: true,
+      timestamp: new Date().toISOString(),
+    };
+  }
 
   @Post('campaign-runs')
   @HttpCode(202)
