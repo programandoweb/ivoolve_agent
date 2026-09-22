@@ -4,6 +4,7 @@ import { ToolRegistryService } from '../tools/tool-registry.service';
 import { AgentRegistryService } from './agent-registry.service';
 import { AgentRuntimeService } from './agent-runtime.service';
 import { ExecutionTraceService } from '../database/execution-trace.service';
+import { AgentConversationStoreService } from './agent-conversation-store.service';
 
 describe('AgentRuntimeService delegation', () => {
   const registry = {
@@ -24,6 +25,11 @@ describe('AgentRuntimeService delegation', () => {
   };
   const traces = {
     event: jest.fn(),
+  };
+  const conversations = {
+    ensureSession: jest.fn(),
+    appendMessage: jest.fn(),
+    loadSession: jest.fn(),
   };
 
   let service: AgentRuntimeService;
@@ -60,6 +66,9 @@ describe('AgentRuntimeService delegation', () => {
     registry.list.mockReturnValue([jorge, sales]);
     redis.getSession.mockResolvedValue(null);
     redis.saveSession.mockResolvedValue(undefined);
+    conversations.ensureSession.mockResolvedValue(undefined);
+    conversations.appendMessage.mockResolvedValue(undefined);
+    conversations.loadSession.mockResolvedValue(null);
     tools.prompt.mockReturnValue('');
     tools.parse.mockReturnValue(null);
 
@@ -69,6 +78,7 @@ describe('AgentRuntimeService delegation', () => {
       llm as unknown as LlmService,
       tools as unknown as ToolRegistryService,
       traces as unknown as ExecutionTraceService,
+      conversations as unknown as AgentConversationStoreService,
     );
   });
 
