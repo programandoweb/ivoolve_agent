@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { LlmModule } from '../llm/llm.module';
 import { ToolsModule } from '../tools/tools.module';
 import { AgentBuilderService } from './agent-builder.service';
+import { AgentConversationStoreService } from './agent-conversation-store.service';
 import { AgentRegistryService } from './agent-registry.service';
 import { AgentRuntimeService } from './agent-runtime.service';
 import { AgentsController } from './agents.controller';
@@ -15,6 +16,7 @@ import { ManagedAgentStoreService } from './managed-agent-store.service';
   controllers: [AgentsController],
   providers: [
     ManagedAgentStoreService,
+    AgentConversationStoreService,
     AgentRegistryService,
     AgentRuntimeService,
     AgentBuilderService,
@@ -22,6 +24,7 @@ import { ManagedAgentStoreService } from './managed-agent-store.service';
   ],
   exports: [
     ManagedAgentStoreService,
+    AgentConversationStoreService,
     AgentRegistryService,
     AgentRuntimeService,
     AgentBuilderService,
