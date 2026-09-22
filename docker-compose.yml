@@ -146,6 +146,10 @@ services:
       NEXT_PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5021}
       NEXT_PUBLIC_SOCKET_URL: ${BACKEND_PUBLIC_URL:-http://localhost:5020}
       SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN:-}
+      DEPLOY_CONTROL_URL: ${DEPLOY_CONTROL_URL:-http://host.docker.internal:8766}
+      DEPLOY_CONTROL_TOKEN: ${DEPLOY_CONTROL_TOKEN:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       backend:
         condition: service_healthy
