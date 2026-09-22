@@ -18,8 +18,10 @@ async function requireAdmin() {
 }
 
 function sameOrigin(req: NextRequest): boolean {
-  const expected = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
-  return req.headers.get("origin") === expected;
+  const origin = req.headers.get("origin");
+  if (!origin) return false;
+  const allowed = new Set([req.nextUrl.origin, process.env.NEXT_PUBLIC_APP_URL].filter(Boolean));
+  return allowed.has(origin);
 }
 
 async function controlRequest(path: string, method: "GET" | "POST") {
