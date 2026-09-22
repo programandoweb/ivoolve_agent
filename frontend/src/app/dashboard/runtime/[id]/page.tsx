@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AutoRefresh } from "@/components/auto-refresh";
+import { DownloadJsonButton } from "@/components/download-json-button";
 import { authenticatedBackendFetch } from "@/lib/backend";
 
 type Execution = {
@@ -84,7 +85,19 @@ export default async function RuntimeExecutionDetailPage({
             {execution.agentId ?? "Sin agente"} · {execution.source ?? "runtime"}
           </p>
         </div>
-        <Status status={execution.status} />
+        <div className="flex flex-wrap items-center gap-2">
+          <DownloadJsonButton
+            data={data}
+            filename={"runtime-" + execution.id + "-completo.json"}
+            label="Descargar ejecución"
+          />
+          <DownloadJsonButton
+            data={events}
+            filename={"runtime-" + execution.id + "-eventos.json"}
+            label="Descargar eventos"
+          />
+          <Status status={execution.status} />
+        </div>
       </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -152,8 +165,28 @@ export default async function RuntimeExecutionDetailPage({
       </section>
 
       <section className="mt-6 grid gap-4 lg:grid-cols-2">
-        <Payload label="Entrada registrada" value={execution.inputPreview} />
-        <Payload label="Salida registrada" value={execution.outputPreview} />
+        <Payload
+          label="Entrada registrada"
+          value={execution.inputPreview}
+          download={
+            <DownloadJsonButton
+              data={parseJsonValue(execution.inputPreview)}
+              filename={"runtime-" + execution.id + "-entrada.json"}
+              label="Descargar entrada"
+            />
+          }
+        />
+        <Payload
+          label="Salida registrada"
+          value={execution.outputPreview}
+          download={
+            <DownloadJsonButton
+              data={parseJsonValue(execution.outputPreview)}
+              filename={"runtime-" + execution.id + "-salida.json"}
+              label="Descargar salida"
+            />
+          }
+        />
       </section>
     </div>
   );
@@ -178,15 +211,44 @@ function Info({
   );
 }
 
-function Payload({ label, value }: { label: string; value?: string }) {
+function Payload({
+  label,
+  value,
+  download,
+}: {
+  label: string;
+  value?: string;
+  download?: React.ReactNode;
+}) {
   return (
     <div className="rounded-3xl border border-zinc-200 bg-white p-5">
-      <p className="text-xs font-bold uppercase tracking-wide text-zinc-400">{label}</p>
-      <pre className="mt-3 max-h-[360px] overflow-auto whitespace-pre-wrap break-words text-xs leading-5 text-zinc-700">
-        {value ?? "—"}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs font-bold uppercase tracking-wide text-zinc-400">{label}</p>
+        {download}
+      </div>
+      <pre className="mt-3 max-h-[360px] overflow-auto whitespace-pre-wrap break-words rounded-2xl bg-zinc-50 p-4 text-xs leading-5 text-zinc-700">
+        {prettyJsonText(value)}
       </pre>
     </div>
   );
+}
+
+function parseJsonValue(value?: string): unknown {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return { raw: value };
+  }
+}
+
+function prettyJsonText(value?: string): string {
+  if (!value) return "—";
+  try {
+    return JSON.stringify(JSON.parse(value), null, 2);
+  } catch {
+    return value;
+  }
 }
 
 function Status({ status }: { status: string }) {
