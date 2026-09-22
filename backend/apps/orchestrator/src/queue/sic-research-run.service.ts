@@ -14,6 +14,16 @@ export class SicResearchRunService {
   ) {}
 
   async handle(run: SicResearchRunPayload): Promise<void> {
+    const normalizedSources = (run.sources ?? []).map((source) => {
+      const raw = source.raw;
+      if (typeof raw !== 'string' || !raw.trim()) return source;
+      try {
+        return { ...source, raw: JSON.parse(raw) as unknown };
+      } catch {
+        return source;
+      }
+    });
+
     await this.traces.event(run.researchId, {
       stage: 'worker.started',
       message: 'BullMQ inició la investigación del prospecto.',
@@ -30,7 +40,7 @@ export class SicResearchRunService {
       'Prospecto JSON:',
       JSON.stringify(run.prospect),
       'Fuentes existentes JSON:',
-      JSON.stringify(run.sources ?? []),
+      JSON.stringify(normalizedSources),
       'Perfiles sociales conocidos JSON:',
       JSON.stringify(run.socialProfiles ?? []),
       '',
@@ -38,11 +48,13 @@ export class SicResearchRunService {
       '1. Trabaja únicamente sobre este prospecto; no conviertas la tarea en una campaña de prospección.',
       '2. Usa prospecting.google_search repetidamente con consultas distintas y específicas.',
       '3. El Google Programmable Search Engine configurado incluye fuentes como Instagram, Facebook, LinkedIn, DIAN y SECOP.',
-      '4. Cada resultado de google_search se guarda automáticamente como evidencia en SIC.',
-      '5. No inventes datos. Distingue hechos, inferencias y desconocidos.',
-      '6. Cambia la consulta cuando los resultados dejen de aportar evidencia nueva.',
-      '7. Investiga en loop hasta agotar consultas razonables o alcanzar el límite de tools.',
-      '8. Finaliza obligatoriamente con sic.research.complete enviando un objeto profile estructurado.',
+      '4. Busca placeId en las fuentes existentes y usa prospecting.google_maps_reviews para recuperar reseñas reales de Google Maps. Si no existe placeId, resuelve el negocio por nombre + ciudad.',
+      '5. Analiza opiniones positivas y negativas sin generalizar a partir de una sola reseña.',
+      '6. Cada resultado de google_search y cada reseña se guarda automáticamente como evidencia en SIC.',
+      '7. No inventes datos. Distingue hechos, inferencias y desconocidos.',
+      '8. Cambia la consulta cuando los resultados dejen de aportar evidencia nueva.',
+      '9. Investiga en loop hasta agotar consultas razonables o alcanzar el límite de tools.',
+      '10. Finaliza obligatoriamente con sic.research.complete incluyendo customerReviews, reviewSentiment, reviewRating y reviewCount cuando existan.',
     ].join('\n');
 
     try {
@@ -57,7 +69,7 @@ export class SicResearchRunService {
           prospectId: run.prospectId,
           campaignContext: {
             prospect: run.prospect,
-            sources: run.sources,
+            sources: normalizedSources,
             socialProfiles: run.socialProfiles,
           },
         },
