@@ -181,7 +181,16 @@ export class ExecutionTraceService {
         currentStage: detail.stage ?? status,
         outputPreview: this.preview(detail.output),
         ...(detail.error ? { error: detail.error } : {}),
-        ...(detail.metadata ? { metadata: { ...(previous.metadata as object ?? {}), ...detail.metadata } } : {}),
+        ...(detail.metadata
+          ? {
+              metadata: {
+                ...(typeof previous.metadata === 'object' && previous.metadata !== null
+                  ? (previous.metadata as Record<string, unknown>)
+                  : {}),
+                ...detail.metadata,
+              },
+            }
+          : {}),
         finishedAt: now.toISOString(),
         durationMs,
       };
