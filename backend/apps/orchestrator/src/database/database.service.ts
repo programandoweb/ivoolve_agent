@@ -178,6 +178,26 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       `ALTER TABLE runtime_executions ADD COLUMN IF NOT EXISTS current_stage VARCHAR(160) NULL AFTER campaign_id`,
       `CREATE INDEX IF NOT EXISTS idx_runtime_correlation ON runtime_executions (correlation_id)`,
       `CREATE INDEX IF NOT EXISTS idx_runtime_campaign ON runtime_executions (campaign_id)`,
+      `CREATE TABLE IF NOT EXISTS agent_chat_sessions (
+        session_id VARCHAR(255) PRIMARY KEY,
+        tenant_id VARCHAR(64) NULL,
+        agent_id VARCHAR(120) NOT NULL,
+        actor_id VARCHAR(64) NULL,
+        created_at DATETIME(3) NOT NULL,
+        updated_at DATETIME(3) NOT NULL,
+        INDEX idx_agent_chat_tenant_agent_updated (tenant_id, agent_id, updated_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS agent_chat_messages (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        session_id VARCHAR(255) NOT NULL,
+        role VARCHAR(20) NOT NULL,
+        content LONGTEXT NOT NULL,
+        created_at DATETIME(3) NOT NULL,
+        INDEX idx_agent_chat_messages_session (session_id, id),
+        CONSTRAINT fk_agent_chat_messages_session
+          FOREIGN KEY (session_id) REFERENCES agent_chat_sessions(session_id)
+          ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       `CREATE TABLE IF NOT EXISTS approvals (
         id VARCHAR(64) PRIMARY KEY,
         tenant_id VARCHAR(64) NULL,
