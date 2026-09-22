@@ -57,10 +57,18 @@ export class ToolRegistryService {
       {
         name: 'prospecting.google_search',
         description:
-          'Busca información pública en Google Search para enriquecer un prospecto ya identificado.',
+          'Busca información pública en Google Programmable Search Engine para enriquecer un prospecto ya identificado. En una investigación SIC activa, cada resultado se persiste automáticamente como evidencia.',
         arguments: {
           query: 'Consulta específica de enriquecimiento',
           maxResults: 'Cantidad opcional de resultados entre 1 y 10',
+        },
+      },
+      {
+        name: 'sic.research.complete',
+        description:
+          'Finaliza una investigación de prospecto iniciada por SIC y guarda el perfil estructurado resultante.',
+        arguments: {
+          profile: 'Objeto con el perfil final verificado/inferido/desconocido del prospecto',
         },
       },
       {
@@ -259,12 +267,51 @@ export class ToolRegistryService {
           maxResults,
         );
 
+        let persistedEvidence = 0;
+        if (context.researchId) {
+          for (const result of results) {
+            await this.sic.addResearchEvidence(context.researchId, {
+              url: result.link,
+              sourceType: 'google_programmable_search',
+              fetchedAt: new Date().toISOString(),
+              result: JSON.stringify(result),
+              extracted: {
+                title: result.title,
+                displayLink: result.displayLink,
+                query,
+              },
+              summary: result.snippet ?? result.title,
+              confidence: result.confidence === 'medium' ? 0.7 : 0.8,
+            });
+            persistedEvidence += 1;
+          }
+        }
+
         return {
           query,
           source: 'google_search',
           resultCount: results.length,
           results,
+          ...(context.researchId ? { persistedEvidence } : {}),
         };
+      }
+
+      case 'sic.research.complete': {
+        if (!context.researchId || !context.prospectId) {
+          throw new BadRequestException(
+            'La tool "sic.research.complete" solo puede usarse dentro de una investigación real iniciada por SIC.',
+          );
+        }
+        const profile = call.arguments?.profile;
+        if (!profile || typeof profile !== 'object' || Array.isArray(profile)) {
+          throw new BadRequestException(
+            'La tool "sic.research.complete" requiere un objeto profile.',
+          );
+        }
+        return this.sic.completeResearch(
+          context.researchId,
+          profile as Record<string, unknown>,
+        );
       }
 
       case 'video.capabilities': {
