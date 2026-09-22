@@ -64,6 +64,16 @@ export class ToolRegistryService {
         },
       },
       {
+        name: 'prospecting.google_maps_reviews',
+        description:
+          'Obtiene reseñas públicas de Google Maps/Places para un prospecto identificado y las persiste como evidencias durante una investigación SIC.',
+        arguments: {
+          placeId: 'Place ID de Google Maps cuando ya está disponible',
+          query: 'Consulta exacta del negocio como fallback si no se conoce placeId',
+          maxReviews: 'Cantidad opcional de reseñas, entre 1 y 5',
+        },
+      },
+      {
         name: 'sic.research.complete',
         description:
           'Finaliza una investigación de prospecto iniciada por SIC y guarda el perfil estructurado resultante.',
@@ -292,6 +302,87 @@ export class ToolRegistryService {
           source: 'google_search',
           resultCount: results.length,
           results,
+          ...(context.researchId ? { persistedEvidence } : {}),
+        };
+      }
+
+      case 'prospecting.google_maps_reviews': {
+        const requestedPlaceId = this.optionalString(call, 'placeId');
+        const query = this.optionalString(call, 'query');
+        const maxReviews = this.optionalNumber(call, 'maxReviews', 5);
+
+        let placeId = requestedPlaceId;
+        if (!placeId) {
+          if (!query) {
+            throw new BadRequestException(
+              'La tool "prospecting.google_maps_reviews" requiere placeId o query.',
+            );
+          }
+          const matches = await this.googleProspecting.searchPlaces(query, 1);
+          placeId = matches[0]?.placeId;
+          if (!placeId) {
+            throw new NotFoundException(
+              'No se pudo resolver el negocio en Google Maps para consultar reseñas.',
+            );
+          }
+        }
+
+        const result = await this.googleProspecting.getPlaceReviews(
+          placeId,
+          maxReviews,
+        );
+
+        let persistedEvidence = 0;
+        if (context.researchId) {
+          for (const review of result.reviews) {
+            await this.sic.addResearchEvidence(context.researchId, {
+              url: review.googleMapsUri ?? result.googleMapsUri ?? '',
+              sourceType: 'google_maps_review',
+              fetchedAt: review.publishTime ?? new Date().toISOString(),
+              result: JSON.stringify(review),
+              extracted: {
+                placeId: result.placeId,
+                businessName: result.name,
+                author: review.author,
+                authorUri: review.authorUri,
+                rating: review.rating,
+                publishTime: review.publishTime,
+                relativePublishTimeDescription:
+                  review.relativePublishTimeDescription,
+              },
+              summary:
+                (review.rating ? review.rating + '/5 · ' : '') +
+                (review.text ?? 'Reseña sin texto'),
+              confidence: 0.95,
+            });
+            persistedEvidence += 1;
+          }
+
+          if (result.reviewSummary) {
+            await this.sic.addResearchEvidence(context.researchId, {
+              url: result.googleMapsUri ?? '',
+              sourceType: 'google_maps_review_summary',
+              fetchedAt: new Date().toISOString(),
+              result: JSON.stringify({
+                reviewSummary: result.reviewSummary,
+                rating: result.rating,
+                userRatingCount: result.userRatingCount,
+              }),
+              extracted: {
+                placeId: result.placeId,
+                businessName: result.name,
+                rating: result.rating,
+                userRatingCount: result.userRatingCount,
+              },
+              summary: result.reviewSummary,
+              confidence: 0.9,
+            });
+            persistedEvidence += 1;
+          }
+        }
+
+        return {
+          ...result,
           ...(context.researchId ? { persistedEvidence } : {}),
         };
       }
