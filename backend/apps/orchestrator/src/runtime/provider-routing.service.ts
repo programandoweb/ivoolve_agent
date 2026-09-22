@@ -3,12 +3,11 @@ import { randomUUID } from 'node:crypto';
 
 import { AgentRegistryService } from '../agents/agent-registry.service';
 import { AgentRuntimeService } from '../agents/agent-runtime.service';
+import { ExecutionTraceService } from '../database/execution-trace.service';
 import { LlmService } from '../llm/llm.service';
 import { ProvidersService } from '../providers/providers.service';
 import { NormalizedProviderMessage } from '../providers/provider-message.types';
 import { RedisService } from '../state/redis.service';
-import { ExecutionLogStore } from './execution-log.store';
-import { RuntimeExecutionRecord } from './execution-log.types';
 
 @Injectable()
 export class ProviderRoutingService {
@@ -20,7 +19,7 @@ export class ProviderRoutingService {
     private readonly runtime: AgentRuntimeService,
     private readonly llm: LlmService,
     private readonly redis: RedisService,
-    private readonly executions: ExecutionLogStore,
+    private readonly traces: ExecutionTraceService,
   ) {}
 
   async handle(message: NormalizedProviderMessage): Promise<void> {
@@ -30,41 +29,70 @@ export class ProviderRoutingService {
 
     if (!claimed) return;
 
-    const started = Date.now();
+    const executionId = randomUUID();
     let tenantId: string | undefined;
-    const record: RuntimeExecutionRecord = {
-      id: randomUUID(),
-      providerId: message.providerId,
-      conversationId: message.conversationId,
-      externalMessageId: message.messageId,
-      status: 'received',
-      inputPreview: message.text.slice(0, 500),
-      startedAt: new Date(started).toISOString(),
-    };
+    let traceStarted = false;
 
     try {
       const provider = await this.providers.get(message.providerId);
       tenantId = provider.tenantId;
       const agentId = await this.selectAgent(provider.agentIds, message.text);
 
+      await this.traces.start({
+        id: executionId,
+        tenantId,
+        providerId: message.providerId,
+        conversationId: message.conversationId,
+        externalMessageId: message.messageId,
+        agentId: agentId ?? undefined,
+        source: 'provider',
+        input: {
+          sender: message.sender,
+          conversationId: message.conversationId,
+          messageId: message.messageId,
+          text: message.text,
+        },
+        metadata: {
+          providerType: provider.type,
+          providerName: provider.name,
+        },
+      });
+      traceStarted = true;
+
       if (!agentId) {
-        await this.executions.append({
-          ...record,
+        await this.traces.event(
+          executionId,
+          {
+            level: 'warning',
+            stage: 'routing.ignored',
+            message: 'El provider no tiene agentes válidos asignados.',
+            data: {
+              providerId: message.providerId,
+              configuredAgentIds: provider.agentIds,
+            },
+          },
           tenantId,
-          status: 'ignored',
+        );
+        await this.traces.finish(executionId, 'ignored', {
+          stage: 'ignored',
           error: 'Provider sin agentes asignados.',
-          finishedAt: new Date().toISOString(),
-          durationMs: Date.now() - started,
+          tenantId,
         });
         return;
       }
 
-      const processing: RuntimeExecutionRecord = {
-        ...record,
+      await this.traces.event(
+        executionId,
+        {
+          stage: 'routing.selected',
+          message: 'Se seleccionó el agente para procesar el mensaje.',
+          data: {
+            agentId,
+            providerId: message.providerId,
+          },
+        },
         tenantId,
-        agentId,
-        status: 'processing',
-      };
+      );
 
       const sessionId =
         `tenant:${tenantId}:provider:${message.providerId}:contact:${message.conversationId}`;
@@ -75,10 +103,25 @@ export class ProviderRoutingService {
         {
           source: 'provider',
           tenantId,
+          executionId,
         },
       );
 
-      await this.providers.sendText(
+      await this.traces.event(
+        executionId,
+        {
+          stage: 'provider.send.request',
+          message: 'El runtime enviará la respuesta por el provider.',
+          data: {
+            providerId: message.providerId,
+            recipient: message.sender,
+            answer: result.answer,
+          },
+        },
+        tenantId,
+      );
+
+      const sendResult = await this.providers.sendText(
         message.providerId,
         agentId,
         message.sender,
@@ -86,24 +129,31 @@ export class ProviderRoutingService {
         tenantId,
       );
 
-      await this.executions.append({
-        ...processing,
-        status: 'completed',
-        outputPreview: result.answer.slice(0, 500),
-        finishedAt: new Date().toISOString(),
-        durationMs: Date.now() - started,
+      await this.traces.event(
+        executionId,
+        {
+          stage: 'provider.send.completed',
+          message: 'El provider confirmó el envío de la respuesta.',
+          data: sendResult,
+        },
+        tenantId,
+      );
+
+      await this.traces.finish(executionId, 'completed', {
+        stage: 'completed',
+        output: result,
+        tenantId,
       });
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
 
-      await this.executions.append({
-        ...record,
-        tenantId,
-        status: 'failed',
-        error: detail.slice(0, 1000),
-        finishedAt: new Date().toISOString(),
-        durationMs: Date.now() - started,
-      });
+      if (traceStarted) {
+        await this.traces.finish(executionId, 'failed', {
+          stage: 'failed',
+          error: detail,
+          tenantId,
+        });
+      }
 
       await this.redis.delete(claimKey);
 
