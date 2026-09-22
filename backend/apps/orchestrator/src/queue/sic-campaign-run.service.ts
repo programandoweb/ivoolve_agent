@@ -62,11 +62,12 @@ export class SicCampaignRunService {
         'Reglas obligatorias:',
         '1. Usa Google Maps como fuente primaria.',
         '2. No inventes datos.',
-        '3. Cada lote de prospectos encontrado debe persistirse inmediatamente con sic.prospects.upsert.',
-        '4. Incluye executionId=' + run.execution_id + ' al usar sic.prospects.upsert.',
-        '5. Conserva placeId, teléfono, web, dirección, categoría y URL de Maps cuando existan.',
-        '6. Respeta el objetivo y las consultas del contexto.',
-        '7. Al terminar responde con un resumen breve de la ejecución.',
+        '3. Los resultados de Google Maps se serializan y persisten automáticamente en SIC por el runtime.',
+        '4. No inventes ni escribas executionId; el runtime usa siempre el executionId real de SIC.',
+        '5. Usa sic.prospects.upsert solo si necesitas persistir un lote adicional/enriquecido; el runtime inyectará el executionId.',
+        '6. Conserva placeId, teléfono, web, dirección, categoría y URL de Maps cuando existan.',
+        '7. Respeta el objetivo y las consultas del contexto.',
+        '8. Al terminar responde con un resumen breve de la ejecución.',
       ].join('\n');
 
       await this.traces.event(run.execution_id, {
@@ -89,6 +90,7 @@ export class SicCampaignRunService {
           executionId: run.execution_id,
           correlationId: run.correlation_id,
           campaignId: run.campaign_id,
+          campaignContext: run.context,
           traceReporter: report,
         },
       );
