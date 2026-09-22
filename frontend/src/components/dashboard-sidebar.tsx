@@ -7,7 +7,8 @@ import {
   MessageSquareText,
   Network,
   PlugZap,
-  ShieldCheck
+  ShieldCheck,
+  ServerCog
 } from "lucide-react";
 import { LogoutButton } from "./logout-button";
 
@@ -19,7 +20,8 @@ const commonItems = [
   { href: "/dashboard/providers", label: "Providers", icon: PlugZap },
   { href: "/dashboard/chat", label: "Conversación", icon: MessageSquareText },
   { href: "/dashboard/runtime", label: "Ejecuciones", icon: Network },
-  { href: "/dashboard/security", label: "Seguridad", icon: ShieldCheck }
+  { href: "/dashboard/security", label: "Seguridad", icon: ShieldCheck },
+  { href: "/dashboard/system", label: "Sistema", icon: ServerCog }
 ];
 
 const adminItems = [
