@@ -38,7 +38,6 @@ export interface ProspectPlaceReviewsResult {
   googleMapsUri?: string;
   rating?: number;
   userRatingCount?: number;
-  reviewSummary?: string;
   reviews: ProspectPlaceReview[];
 }
 
@@ -165,7 +164,6 @@ export class GoogleProspectingService {
             'rating',
             'userRatingCount',
             'reviews',
-            'reviewSummary',
           ].join(','),
           'Accept-Language': 'es-CO,es;q=0.9',
         },
@@ -185,9 +183,6 @@ export class GoogleProspectingService {
       googleMapsUri?: string;
       rating?: number;
       userRatingCount?: number;
-      reviewSummary?: {
-        text?: { text?: string } | string;
-      };
       reviews?: Array<{
         authorAttribution?: {
           displayName?: string;
@@ -202,11 +197,6 @@ export class GoogleProspectingService {
       }>;
     };
 
-    const summaryText =
-      typeof payload.reviewSummary?.text === 'string'
-        ? payload.reviewSummary.text
-        : payload.reviewSummary?.text?.text;
-
     return {
       source: 'google_maps_reviews',
       placeId: payload.id ?? placeId,
@@ -214,7 +204,6 @@ export class GoogleProspectingService {
       googleMapsUri: payload.googleMapsUri,
       rating: payload.rating,
       userRatingCount: payload.userRatingCount,
-      reviewSummary: summaryText,
       reviews: (payload.reviews ?? [])
         .slice(0, Math.min(Math.max(maxReviews, 1), 5))
         .map((review) => ({
