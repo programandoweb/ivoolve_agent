@@ -12,6 +12,7 @@ import { Server, Socket } from 'socket.io';
 
 import { AuthService } from '../auth/auth.service';
 import { AuthenticatedUser } from '../auth/auth.types';
+import { ExecutionTraceService } from '../database/execution-trace.service';
 import { AgentBuilderService } from './agent-builder.service';
 import { AgentRuntimeService } from './agent-runtime.service';
 
@@ -53,6 +54,7 @@ export class AgentsGateway
     private readonly runtime: AgentRuntimeService,
     private readonly builder: AgentBuilderService,
     private readonly auth: AuthService,
+    private readonly traces: ExecutionTraceService,
   ) {}
 
   async handleConnection(client: Socket): Promise<void> {
@@ -145,9 +147,28 @@ export class AgentsGateway
 
     const requestedAgent = payload?.agentId?.trim().toLowerCase();
 
+    const executionId = this.traces.newId(mode === 'builder' ? 'builder' : 'chat');
+    await this.traces.start({
+      id: executionId,
+      tenantId: user.tenantId,
+      agentId: requestedAgent || (mode === 'builder' ? 'agent-builder' : 'jorge'),
+      source: mode === 'builder' ? 'interactive_builder' : 'interactive',
+      input: {
+        sessionId,
+        message,
+        requestedAgent,
+        mode,
+      },
+      metadata: {
+        socketId: client.id,
+        actorId: user.id,
+      },
+    });
+
     client.emit(`${eventPrefix}:processing`, {
       sessionId,
       agent: requestedAgent || 'jorge',
+      executionId,
     });
 
     try {
@@ -160,21 +181,36 @@ export class AgentsGateway
                 actorId: user.id,
                 actorRole: user.role,
                 tenantId: user.tenantId,
+                executionId,
               })
             : await this.runtime.chat(runtimeSessionId, message, {
                 source: 'interactive',
                 actorId: user.id,
                 actorRole: user.role,
                 tenantId: user.tenantId,
+                executionId,
               });
+
+      await this.traces.finish(executionId, 'completed', {
+        output: result,
+        tenantId: user.tenantId,
+        stage: 'completed',
+      });
 
       client.emit(`${eventPrefix}:response`, {
         ...result,
         sessionId,
+        executionId,
       });
     } catch (error) {
       const detail =
         error instanceof Error ? error.message : 'Error desconocido';
+
+      await this.traces.finish(executionId, 'failed', {
+        error: detail,
+        tenantId: user.tenantId,
+        stage: 'failed',
+      });
 
       this.logger.error(
         `Error procesando sesión ${runtimeSessionId}: ${detail}`,
@@ -182,6 +218,7 @@ export class AgentsGateway
 
       client.emit(`${eventPrefix}:error`, {
         sessionId,
+        executionId,
         message: detail,
       });
     }
