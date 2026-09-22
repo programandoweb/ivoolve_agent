@@ -50,6 +50,7 @@ type AgentError = {
 type AgentChatProps = {
   mode?: "chat" | "builder";
   agentId?: string;
+  contained?: boolean;
 };
 
 function getOrCreateSessionId(
@@ -71,7 +72,7 @@ function getOrCreateSessionId(
   return created;
 }
 
-export function AgentChat({ mode = "chat", agentId }: AgentChatProps) {
+export function AgentChat({ mode = "chat", agentId, contained = false }: AgentChatProps) {
   const socketRef = useRef<Socket | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -213,7 +214,7 @@ export function AgentChat({ mode = "chat", agentId }: AgentChatProps) {
   return (
     <div
       className={
-        isBuilder
+        isBuilder || contained
           ? "flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[24px] border border-zinc-200/80 bg-white shadow-soft sm:rounded-[28px]"
           : "overflow-hidden rounded-[32px] border border-zinc-200/80 bg-white shadow-soft"
       }
@@ -264,7 +265,7 @@ export function AgentChat({ mode = "chat", agentId }: AgentChatProps) {
       <div
         ref={messagesContainerRef}
         className={
-          isBuilder
+          isBuilder || contained
             ? "min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5"
             : "h-[500px] space-y-4 overflow-y-auto px-4 py-6 sm:px-6"
         }
