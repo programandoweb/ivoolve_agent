@@ -20,6 +20,28 @@ export interface ProspectPlace {
   primaryType?: string;
 }
 
+
+export interface ProspectPlaceReview {
+  author?: string;
+  authorUri?: string;
+  rating?: number;
+  text?: string;
+  relativePublishTimeDescription?: string;
+  publishTime?: string;
+  googleMapsUri?: string;
+}
+
+export interface ProspectPlaceReviewsResult {
+  source: 'google_maps_reviews';
+  placeId: string;
+  name?: string;
+  googleMapsUri?: string;
+  rating?: number;
+  userRatingCount?: number;
+  reviewSummary?: string;
+  reviews: ProspectPlaceReview[];
+}
+
 export interface ProspectWebResult {
   source: 'google_search';
   confidence: 'medium';
@@ -115,6 +137,97 @@ export class GoogleProspectingService {
         businessStatus: place.businessStatus,
         primaryType: place.primaryType,
       }));
+  }
+
+
+  async getPlaceReviews(
+    placeId: string,
+    maxReviews = 5,
+  ): Promise<ProspectPlaceReviewsResult> {
+    const apiKey = this.config.get<string>('GOOGLE_MAPS_API_KEY')?.trim();
+
+    if (!apiKey) {
+      throw new ServiceUnavailableException(
+        'GOOGLE_MAPS_API_KEY no está configurada.',
+      );
+    }
+
+    const response = await fetch(
+      'https://places.googleapis.com/v1/places/' + encodeURIComponent(placeId),
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': apiKey,
+          'X-Goog-FieldMask': [
+            'id',
+            'displayName',
+            'googleMapsUri',
+            'rating',
+            'userRatingCount',
+            'reviews',
+            'reviewSummary',
+          ].join(','),
+          'Accept-Language': 'es-CO,es;q=0.9',
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new ServiceUnavailableException(
+        `Google Place Details respondió ${response.status}: ${detail.slice(0, 300)}`,
+      );
+    }
+
+    const payload = (await response.json()) as {
+      id?: string;
+      displayName?: { text?: string };
+      googleMapsUri?: string;
+      rating?: number;
+      userRatingCount?: number;
+      reviewSummary?: {
+        text?: { text?: string } | string;
+      };
+      reviews?: Array<{
+        authorAttribution?: {
+          displayName?: string;
+          uri?: string;
+        };
+        rating?: number;
+        text?: { text?: string };
+        originalText?: { text?: string };
+        relativePublishTimeDescription?: string;
+        publishTime?: string;
+        googleMapsUri?: string;
+      }>;
+    };
+
+    const summaryText =
+      typeof payload.reviewSummary?.text === 'string'
+        ? payload.reviewSummary.text
+        : payload.reviewSummary?.text?.text;
+
+    return {
+      source: 'google_maps_reviews',
+      placeId: payload.id ?? placeId,
+      name: payload.displayName?.text,
+      googleMapsUri: payload.googleMapsUri,
+      rating: payload.rating,
+      userRatingCount: payload.userRatingCount,
+      reviewSummary: summaryText,
+      reviews: (payload.reviews ?? [])
+        .slice(0, Math.min(Math.max(maxReviews, 1), 5))
+        .map((review) => ({
+          author: review.authorAttribution?.displayName,
+          authorUri: review.authorAttribution?.uri,
+          rating: review.rating,
+          text: review.text?.text ?? review.originalText?.text,
+          relativePublishTimeDescription:
+            review.relativePublishTimeDescription,
+          publishTime: review.publishTime,
+          googleMapsUri: review.googleMapsUri,
+        })),
+    };
   }
 
   async searchWeb(
