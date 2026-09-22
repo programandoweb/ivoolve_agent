@@ -3,6 +3,7 @@ import { RedisService } from '../state/redis.service';
 import { ToolRegistryService } from '../tools/tool-registry.service';
 import { AgentRegistryService } from './agent-registry.service';
 import { AgentRuntimeService } from './agent-runtime.service';
+import { ExecutionTraceService } from '../database/execution-trace.service';
 
 describe('AgentRuntimeService delegation', () => {
   const registry = {
@@ -20,6 +21,9 @@ describe('AgentRuntimeService delegation', () => {
     prompt: jest.fn(),
     parse: jest.fn(),
     execute: jest.fn(),
+  };
+  const traces = {
+    event: jest.fn(),
   };
 
   let service: AgentRuntimeService;
@@ -64,6 +68,7 @@ describe('AgentRuntimeService delegation', () => {
       redis as unknown as RedisService,
       llm as unknown as LlmService,
       tools as unknown as ToolRegistryService,
+      traces as unknown as ExecutionTraceService,
     );
   });
 
