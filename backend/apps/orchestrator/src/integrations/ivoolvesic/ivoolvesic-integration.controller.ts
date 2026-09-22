@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Headers, HttpCode, Post } from '@nestjs/common';
-import { IsObject, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsArray, IsObject, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import { IvoolveSicIntegrationService } from './ivoolvesic-integration.service';
 
 class SicCampaignRunDto {
@@ -8,6 +8,15 @@ class SicCampaignRunDto {
   @IsUUID() campaign_id!: string;
   @IsString() @MinLength(2) @MaxLength(120) agent_id!: string;
   @IsObject() context!: Record<string, unknown>;
+}
+
+class SicResearchRunDto {
+  @IsUUID() researchId!: string;
+  @IsUUID() prospectId!: string;
+  @IsString() @MinLength(2) @MaxLength(120) agentId!: string;
+  @IsObject() prospect!: Record<string, unknown>;
+  @IsArray() sources!: Record<string, unknown>[];
+  @IsArray() socialProfiles!: Record<string, unknown>[];
 }
 
 class SicTestTaskDto {
@@ -38,6 +47,16 @@ export class IvoolveSicIntegrationController {
   ) {
     this.integration.assertServiceToken(authorization);
     return this.integration.testTask(dto.agent_id, dto.message);
+  }
+
+  @Post('research-runs')
+  @HttpCode(202)
+  enqueueResearch(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: SicResearchRunDto,
+  ) {
+    this.integration.assertServiceToken(authorization);
+    return this.integration.enqueueResearch(dto);
   }
 
   @Post('campaign-runs')
