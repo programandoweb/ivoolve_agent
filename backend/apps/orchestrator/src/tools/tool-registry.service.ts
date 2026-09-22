@@ -96,8 +96,7 @@ export class ToolRegistryService {
         description:
           'Persiste en Ivoolve SIC un lote de prospectos encontrado durante una campaña externa. SIC deduplica y conserva la fuente de verdad.',
         arguments: {
-          executionId: 'UUID de ejecución entregado por SIC',
-          prospects: 'Array de prospectos. Cada item debe incluir name y datos verificables disponibles.',
+          prospects: 'Array de prospectos. Cada item debe incluir name y datos verificables disponibles. El executionId real lo inyecta el runtime cuando la ejecución proviene de SIC.',
         },
       },
       {
@@ -215,11 +214,40 @@ export class ToolRegistryService {
           maxResults,
         );
 
+        const serializedProspects = results.map((result) =>
+          this.serializeGooglePlace(result, query, context),
+        );
+
+        // Cuando la prospección nació en SIC, la persistencia es determinística:
+        // no dependemos de que el LLM recuerde emitir otra tool call ni permitimos
+        // que invente el executionId. Cada resultado verificable se guarda en SIC
+        // inmediatamente después de Google Places.
+        let persistence:
+          | { mode: 'automatic'; executionId: string; savedCount: number; prospects: unknown[] }
+          | undefined;
+
+        if (context.executionId && context.campaignId) {
+          const saved: unknown[] = [];
+          for (const prospect of serializedProspects) {
+            saved.push(
+              await this.sic.upsertProspect(context.executionId, prospect),
+            );
+          }
+          persistence = {
+            mode: 'automatic',
+            executionId: context.executionId,
+            savedCount: saved.length,
+            prospects: saved,
+          };
+        }
+
         return {
           query,
           source: 'google_maps',
           resultCount: results.length,
           results,
+          serializedProspects,
+          ...(persistence ? { persistence } : {}),
         };
       }
 
@@ -267,7 +295,25 @@ export class ToolRegistryService {
       }
 
       case 'sic.prospects.upsert': {
-        const executionId = this.requiredString(call, 'executionId');
+        const requestedExecutionId = this.optionalString(call, 'executionId');
+        const executionId = context.executionId ?? requestedExecutionId;
+
+        if (!executionId || !context.campaignId) {
+          throw new BadRequestException(
+            'La tool "sic.prospects.upsert" solo puede persistir prospectos dentro de una ejecución real iniciada por SIC.',
+          );
+        }
+
+        if (
+          requestedExecutionId &&
+          context.executionId &&
+          requestedExecutionId !== context.executionId
+        ) {
+          throw new BadRequestException(
+            'El executionId solicitado no coincide con la ejecución SIC activa.',
+          );
+        }
+
         const prospects = call.arguments?.prospects;
         if (!Array.isArray(prospects) || prospects.length < 1 || prospects.length > 50) {
           throw new BadRequestException(
@@ -369,6 +415,58 @@ export class ToolRegistryService {
           `Tool "${call.tool}" no registrada en el runtime.`,
         );
     }
+  }
+
+  private serializeGooglePlace(
+    source: {
+      placeId: string;
+      name: string;
+      formattedAddress?: string;
+      nationalPhoneNumber?: string;
+      internationalPhoneNumber?: string;
+      websiteUri?: string;
+      googleMapsUri?: string;
+      rating?: number;
+      userRatingCount?: number;
+      businessStatus?: string;
+      primaryType?: string;
+      confidence?: string;
+    },
+    query: string,
+    context: ToolExecutionContext,
+  ): Record<string, unknown> {
+    const campaign = context.campaignContext ?? {};
+    const country =
+      typeof campaign.country === 'string' && campaign.country.trim()
+        ? campaign.country.trim().toUpperCase()
+        : 'CO';
+
+    return {
+      name: source.name,
+      placeId: source.placeId,
+      sourceExternalId: source.placeId,
+      address: source.formattedAddress,
+      phone:
+        source.internationalPhoneNumber ?? source.nationalPhoneNumber,
+      website: source.websiteUri,
+      mapsUrl: source.googleMapsUri,
+      sourceUrl: source.googleMapsUri,
+      category: source.primaryType,
+      city:
+        typeof campaign.city === 'string' ? campaign.city : undefined,
+      department:
+        typeof campaign.department === 'string'
+          ? campaign.department
+          : undefined,
+      country,
+      sourceType: 'google_maps',
+      confidence: source.confidence ?? 'high',
+      rating: source.rating,
+      userRatingCount: source.userRatingCount,
+      businessStatus: source.businessStatus,
+      searchQuery: query,
+      capturedAt: new Date().toISOString(),
+    };
   }
 
   private requiredString(call: ToolCallEnvelope, key: string): string {
