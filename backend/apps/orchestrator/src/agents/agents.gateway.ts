@@ -100,6 +100,47 @@ export class AgentsGateway
     await this.processMessage(client, payload, 'chat');
   }
 
+  @SubscribeMessage('agent:history:request')
+  async handleAgentHistory(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { sessionId?: string; agentId?: string },
+  ): Promise<void> {
+    const user = client.data.user as AuthenticatedUser | undefined;
+    if (!user) {
+      client.emit('agent:history', {
+        sessionId: payload?.sessionId,
+        messages: [],
+        error: 'Autenticación requerida.',
+      });
+      return;
+    }
+
+    const sessionId = payload?.sessionId?.trim();
+    const agentId = payload?.agentId?.trim().toLowerCase() || 'jorge';
+    if (!sessionId) {
+      client.emit('agent:history', {
+        sessionId,
+        messages: [],
+        error: 'sessionId es obligatorio.',
+      });
+      return;
+    }
+
+    const runtimeSessionId = `tenant:${user.tenantId}:${sessionId}`;
+    const session = await this.runtime.getConversation(
+      runtimeSessionId,
+      agentId,
+      user.tenantId,
+    );
+
+    client.emit('agent:history', {
+      sessionId,
+      agentId,
+      messages: session?.messages ?? [],
+    });
+  }
+
+
   @SubscribeMessage('agent-builder:message')
   async handleAgentBuilderMessage(
     @ConnectedSocket() client: Socket,
