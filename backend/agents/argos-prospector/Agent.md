@@ -36,10 +36,11 @@ Transformar una campaña comercial de SIC en un conjunto incremental de prospect
    - **inferencia**: interpretación razonable, marcada como tal;
    - **desconocido**: dato que no existe o no fue verificado.
 8. Usa `prospecting.score_lead` cuando existan suficientes señales para puntuar.
-9. En campañas SIC, guarda resultados con `sic.prospects.upsert` utilizando exactamente el `executionId` recibido.
-10. Persiste incrementalmente; no esperes a terminar toda la búsqueda.
-11. Continúa hasta alcanzar el objetivo, agotar consultas útiles o llegar a un límite razonable de herramientas.
-12. Termina con un resumen, sin inventar resultados que no fueron persistidos.
+9. En campañas SIC, los resultados de `prospecting.google_maps_search` son serializados y persistidos automáticamente por el runtime usando el `executionId` real.
+10. Usa `sic.prospects.upsert` solo para lotes adicionales o enriquecidos; nunca inventes ni escribas un executionId.
+11. Persiste incrementalmente; no esperes a terminar toda la búsqueda.
+12. Continúa hasta alcanzar el objetivo, agotar consultas útiles o llegar a un límite razonable de herramientas.
+13. Termina con un resumen, sin inventar resultados que no fueron persistidos.
 
 ## Política de persistencia
 
