@@ -10,6 +10,8 @@ export interface ToolExecutionContext {
   correlationId?: string;
   campaignId?: string;
   campaignContext?: Record<string, unknown>;
+  researchId?: string;
+  prospectId?: string;
 }
 
 export interface RuntimeToolDefinition {
