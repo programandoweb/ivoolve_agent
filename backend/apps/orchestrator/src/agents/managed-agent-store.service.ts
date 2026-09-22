@@ -172,12 +172,14 @@ export class ManagedAgentStoreService {
         : ['- Sin conocimiento estable inicial.']),
     ].join('\n');
 
-    const tools = [
+    const skills = [
       '# Skills',
       ...(draft.skills.length
         ? draft.skills.map((item) => `- ${item}`)
         : ['- Ninguno declarado.']),
-      '',
+    ].join('\n');
+
+    const tools = [
       '# Tools',
       ...(draft.tools.length
         ? draft.tools.map((item) => `- ${item}`)
@@ -191,6 +193,7 @@ export class ManagedAgentStoreService {
       prompt,
       memory,
       tools,
+      skills,
       source: 'managed',
       metadata: {
         name: draft.name,

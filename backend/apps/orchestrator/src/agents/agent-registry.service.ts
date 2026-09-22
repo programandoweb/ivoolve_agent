@@ -57,10 +57,11 @@ export class AgentRegistryService implements OnModuleInit {
 
       const id = entry.name.toLowerCase();
       const directory = join(agentsPath, entry.name);
-      const [prompt, memory, tools] = await Promise.all([
+      const [prompt, memory, tools, skills] = await Promise.all([
         fs.readFile(join(directory, 'Agent.md'), 'utf8'),
         fs.readFile(join(directory, 'Memory.md'), 'utf8'),
         fs.readFile(join(directory, 'Tools.md'), 'utf8'),
+        fs.readFile(join(directory, 'Skills.md'), 'utf8').catch(() => ''),
       ]);
 
       this.agents.set(id, {
@@ -68,6 +69,7 @@ export class AgentRegistryService implements OnModuleInit {
         prompt,
         memory,
         tools,
+        ...(skills ? { skills } : {}),
         source: 'core',
         metadata: {
           name: entry.name,

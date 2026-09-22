@@ -93,6 +93,8 @@ export class AgentRuntimeService {
       agent.prompt,
       '\n## Memoria base versionada\n',
       agent.memory,
+      '\n## Skills especializados del agente\n',
+      agent.skills || 'Sin skills adicionales versionados.',
       '\n## Herramientas declaradas por el agente\n',
       agent.tools,
       '\n## Tools ejecutables disponibles en el runtime\n',

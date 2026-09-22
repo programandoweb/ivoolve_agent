@@ -15,6 +15,7 @@ export interface AgentDefinition {
   prompt: string;
   memory: string;
   tools: string;
+  skills?: string;
   source: AgentSource;
   metadata?: AgentMetadata;
 }
