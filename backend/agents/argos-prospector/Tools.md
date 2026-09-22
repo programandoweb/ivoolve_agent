@@ -40,8 +40,10 @@ Usarla después de recopilar suficientes señales. No inventar valores booleanos
 Persistencia durable de campaña.
 
 Reglas:
-- obligatorio cuando la ejecución proviene de SIC;
-- usar el `executionId` recibido;
+- solo disponible dentro de una ejecución real iniciada por SIC;
+- el `executionId` lo inyecta el runtime, el modelo no debe inventarlo ni escribirlo;
+- los resultados de `prospecting.google_maps_search` ya se serializan y persisten automáticamente cuando la ejecución proviene de SIC;
+- usar esta tool para lotes adicionales/enriquecidos;
 - enviar entre 1 y 50 prospectos;
 - preferir lotes de 5 a 20;
 - preservar datos observados;
