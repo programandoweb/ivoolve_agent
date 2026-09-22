@@ -24,5 +24,10 @@ git reset --hard origin/main
 export IVOOLVE_AGENT_APP_DIR="$ROOT_DIR"
 export IVOOLVE_AGENT_SKIP_GIT_SYNC=true
 
+if [[ "${IVOOLVE_DEPLOY_CONTROL_REQUEST:-0}" != "1" ]]; then
+  log "Instalando/actualizando control de despliegue web"
+  bash "$ROOT_DIR/scripts/deploy/install-control.sh"
+fi
+
 log "Ejecutando despliegue de producción"
 exec bash "$ROOT_DIR/scripts/deploy/production.sh"
