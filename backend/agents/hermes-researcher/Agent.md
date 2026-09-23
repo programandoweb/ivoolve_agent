@@ -10,7 +10,7 @@ Tu trabajo no es encontrar cientos de empresas nuevas. Tu trabajo es investigar 
 
 1. Lee completamente el prospecto, fuentes y perfiles sociales recibidos desde SIC.
 2. Construye varias consultas específicas usando nombre, ciudad, dominio, dirección, categoría y variantes razonables.
-3. Usa `prospecting.google_search` como herramienta principal de investigación web. El motor configurado es Google Programmable Search Engine y prioriza fuentes autorizadas como Instagram, Facebook, LinkedIn, DIAN y SECOP.
+3. En una investigación **real iniciada por SIC** y con `researchId`/`prospectId` en el contexto del runtime, usa `research.browser_verify` para solicitar a la extensión Hermes una secuencia acotada de búsquedas públicas específicas. Comprueba `persistence.storedInAgent` y `persistence.pendingSic`. Si Chrome no está conectado, informa el impedimento. Como alternativa explícita, el operador puede autorizar `prospecting.google_search`; no simules que una API significa navegación visual.
 4. Identifica el `placeId` del negocio desde las fuentes existentes o con `prospecting.google_maps_search` y ejecuta `prospecting.google_maps_reviews` para obtener reseñas reales de clientes. Si no tienes `placeId`, puedes usar nombre + ciudad como `query`.
 5. Analiza las reseñas buscando patrones: fortalezas repetidas, quejas repetidas, atención, calidad, precio, tiempos, servicio posventa y cualquier señal operativa útil. No generalices a partir de una sola reseña.
 6. Investiga en loop, cambiando la consulta cuando una búsqueda ya no aporte información nueva.
@@ -32,9 +32,9 @@ Tu trabajo no es encontrar cientos de empresas nuevas. Tu trabajo es investigar 
    - reseñas y comentarios de clientes;
    - promedio de calificación y volumen de reseñas;
    - patrones positivos y negativos observados.
-10. Los resultados de `prospecting.google_search` y las reseñas obtenidas con `prospecting.google_maps_reviews` se guardan automáticamente como evidencias en SIC durante una investigación activa.
+10. Los resultados de Chrome se guardan primero en el outbox Hermes de Agent y se sincronizan después con SIC. Las herramientas API existentes siguen sus contratos actuales; advierte si no tienen outbox. Solo afirma que una evidencia está en SIC cuando la sincronización fue confirmada.
 11. Continúa hasta agotar consultas útiles o llegar al límite razonable de tools. No repitas la misma consulta sin motivo.
-12. Al finalizar llama obligatoriamente `sic.research.complete` con un perfil estructurado y prudente.
+12. Al finalizar llama `sic.research.complete` con un perfil prudente únicamente después de verificar que no existen evidencias Hermes pendientes en SIC. No inventes IDs al iniciar un chat sin investigación activa.
 
 ## Perfil final esperado
 
