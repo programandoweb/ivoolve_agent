@@ -1,4 +1,5 @@
 import { ApprovalsService } from '../approvals/approvals.service';
+import { ArgosBrowserService } from '../browser/argos-browser.service';
 import { ProvidersService } from '../providers/providers.service';
 import { GoogleProspectingService } from './google-prospecting.service';
 import { ToolRegistryService } from './tool-registry.service';
@@ -24,6 +25,7 @@ describe('ToolRegistryService', () => {
     generate: jest.fn(),
     status: jest.fn(),
   };
+  const argosBrowser = { search: jest.fn() };
   const sic = {
     upsertProspect: jest.fn(),
   };
@@ -40,6 +42,7 @@ describe('ToolRegistryService', () => {
       googleProspecting as unknown as GoogleProspectingService,
       videoGenerator as unknown as VideoGeneratorService,
       sic as unknown as SicClientService,
+      argosBrowser as unknown as ArgosBrowserService,
     );
   });
 
@@ -257,6 +260,38 @@ describe('ToolRegistryService', () => {
 
     expect(videoGenerator.generate).not.toHaveBeenCalled();
   });
+  it('pide a Chrome datos visibles y los persiste en la ejecución real de SIC', async () => {
+    argosBrowser.search.mockResolvedValue([{
+      name: 'Taller Uno', mapsUrl: 'https://www.google.com/maps/place/Taller+Uno',
+      address: 'Pereira, Risaralda', phone: '+573001112233',
+      sourceType: 'google_maps_browser', capturedAt: '2026-09-23T00:00:00.000Z',
+    }]);
+    sic.upsertProspect.mockResolvedValue({ id: 'saved' });
+
+    const result = await service.execute({
+      tool: 'prospecting.browser_maps_search',
+      arguments: { query: 'empresas automotrices en Pereira', maxResults: 100 },
+    }, {
+      agentId: 'argos-prospector', source: 'integration',
+      executionId: 'run-actual', campaignId: 'campaign-1',
+      campaignContext: { city: 'Pereira', department: 'Risaralda' },
+    }) as Record<string, unknown>;
+
+    expect(argosBrowser.search).toHaveBeenCalledWith('empresas automotrices en Pereira', 100);
+    expect(sic.upsertProspect).toHaveBeenCalledWith('run-actual', expect.objectContaining({
+      name: 'Taller Uno', city: 'Pereira', department: 'Risaralda',
+      sourceType: 'google_maps',
+    }));
+    expect(result.persistence).toEqual(expect.objectContaining({ savedCount: 1 }));
+  });
+
+  it('no permite a otros agentes controlar la extensión Argos', async () => {
+    await expect(service.execute({
+      tool: 'prospecting.browser_maps_search', arguments: { query: 'automotrices Pereira' },
+    }, { agentId: 'hermes-researcher', source: 'interactive' })).rejects.toThrow('Solo Argos');
+    expect(argosBrowser.search).not.toHaveBeenCalled();
+  });
+
   it('serializa y persiste automáticamente resultados de Maps cuando la ejecución viene de SIC', async () => {
     googleProspecting.searchPlaces.mockResolvedValue([
       {
