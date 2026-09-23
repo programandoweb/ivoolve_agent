@@ -294,6 +294,38 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         INDEX idx_argos_outbox_tenant_created (tenant_id, created_at),
         INDEX idx_argos_outbox_execution (execution_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      // Chrome records an authorized task before navigation; results can be
+      // resent after backend restart but only for the original SIC identifiers.
+      `CREATE TABLE IF NOT EXISTS hermes_browser_tasks (
+        task_id VARCHAR(64) PRIMARY KEY,
+        tenant_id VARCHAR(64) NOT NULL,
+        research_id VARCHAR(120) NOT NULL,
+        prospect_id VARCHAR(120) NOT NULL,
+        status VARCHAR(30) NOT NULL,
+        created_at DATETIME(3) NOT NULL,
+        INDEX idx_hermes_task_research (tenant_id,research_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS hermes_sic_outbox (
+        id VARCHAR(64) PRIMARY KEY,
+        tenant_id VARCHAR(64) NOT NULL,
+        task_id VARCHAR(64) NOT NULL,
+        research_id VARCHAR(120) NOT NULL,
+        prospect_id VARCHAR(120) NOT NULL,
+        fingerprint CHAR(64) NOT NULL,
+        payload_json LONGTEXT NOT NULL,
+        status VARCHAR(30) NOT NULL,
+        attempts INT UNSIGNED NOT NULL DEFAULT 0,
+        last_error TEXT NULL,
+        next_attempt_at DATETIME(3) NULL,
+        locked_at DATETIME(3) NULL,
+        synced_at DATETIME(3) NULL,
+        created_at DATETIME(3) NOT NULL,
+        updated_at DATETIME(3) NOT NULL,
+        UNIQUE KEY uq_hermes_evidence_task (task_id,fingerprint),
+        INDEX idx_hermes_evidence_due (status,next_attempt_at),
+        INDEX idx_hermes_evidence_tenant (tenant_id,created_at),
+        INDEX idx_hermes_evidence_research (tenant_id,research_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       `CREATE TABLE IF NOT EXISTS audit_events (
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
         tenant_id VARCHAR(64) NULL,
