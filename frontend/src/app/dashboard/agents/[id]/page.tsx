@@ -4,6 +4,9 @@ import { Activity, History, MessageSquareText } from "lucide-react";
 
 import { AgentChat } from "@/components/agent-chat";
 import { ArgosBrowserPairing } from "@/components/argos-browser-pairing";
+import { HermesBrowserPairing } from "@/components/hermes-browser-pairing";
+import { HermesTemplateLibrary } from "@/components/hermes-template-library";
+import { HermesSicOutbox } from "@/components/hermes-sic-outbox";
 import { ArgosTemplateLibrary } from "@/components/argos-template-library";
 import { ArgosSicOutbox } from "@/components/argos-sic-outbox";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -53,7 +56,7 @@ export default async function AgentDetailPage({
   const { id } = await params;
   const { tab: requestedTab } = await searchParams;
   const tab: TabId =
-    requestedTab === "activity" || requestedTab === "history" || (id === "argos-prospector" && (requestedTab === "connect" || requestedTab === "sync"))
+    requestedTab === "activity" || requestedTab === "history" || ((id === "argos-prospector" || id === "hermes-researcher") && (requestedTab === "connect" || requestedTab === "sync"))
       ? requestedTab
       : "chat";
 
@@ -145,9 +148,17 @@ export default async function AgentDetailPage({
             <TabLink href="/dashboard/agents/argos-prospector?tab=sync" active={tab === "sync"} icon={<History className="h-4 w-4" />}>Sincronización SIC</TabLink>
           </>
         ) : null}
+        {id === "hermes-researcher" ? (
+          <>
+            <TabLink href="/dashboard/agents/hermes-researcher?tab=connect" active={tab === "connect"} icon={<Activity className="h-4 w-4" />}>Conectar Chrome</TabLink>
+            <TabLink href="/dashboard/agents/hermes-researcher?tab=sync" active={tab === "sync"} icon={<History className="h-4 w-4" />}>Sincronización SIC</TabLink>
+          </>
+        ) : null}
       </nav>
 
       {id === "argos-prospector" && tab === "sync" ? <ArgosSicOutbox /> : null}
+      {id === "hermes-researcher" && tab === "sync" ? <HermesSicOutbox /> : null}
+      {id === "hermes-researcher" && tab === "connect" ? <HermesBrowserPairing /> : null}
       {id === "argos-prospector" && tab === "connect" ? <ArgosBrowserPairing /> : null}
 
       {tab === "chat" ? (
@@ -157,6 +168,11 @@ export default async function AgentDetailPage({
             <div className="h-[560px] min-h-0 lg:h-[670px]">
               <AgentChat agentId={agent.id} contained />
             </div>
+          </div>
+        ) : id === "hermes-researcher" ? (
+          <div className="grid min-h-0 gap-4 lg:grid-cols-[310px_minmax(0,1fr)]">
+            <HermesTemplateLibrary />
+            <div className="h-[560px] min-h-0 lg:h-[670px]"><AgentChat agentId={agent.id} contained /></div>
           </div>
         ) : (
           <div className="h-[560px] min-h-0 xl:h-[600px]">
