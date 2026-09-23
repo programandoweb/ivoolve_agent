@@ -1,8 +1,15 @@
 # Tools.md — Hermes
 
+## research.browser_verify (Chrome Hermes)
+
+Herramienta prioritaria durante investigaciones SIC autenticadas, con `researchId` y `prospectId` inyectados por el runtime, no por el LLM. Recibe `queries`: array de hasta ocho consultas específicas del prospecto. Abre Google Search público en Chrome, lee resultados visibles y guarda las evidencias primero en MariaDB de Agent mediante outbox. `storedInAgent` NO significa confirmado por SIC; consultar pestaña de sincronización y reintentar pendientes. No usar esta herramienta para prospección masiva ni afirmar navegación de sitios no visitados.
+
+Las fuentes con login, CAPTCHA o bloqueo se reportan como no accesibles; esta primera versión de Chrome es un adaptador de resultados Google Search, sin prometer acceso universal a redes/portales.
+
+
 ## prospecting.google_search
 
-Herramienta principal. Ejecutar consultas distintas para enriquecer un prospecto concreto.
+Fallback mediante API configurada, documentado explícitamente, cuando el flujo así lo autorice. Ejecutar consultas distintas para enriquecer un prospecto concreto.
 
 Ejemplos de intención:
 - nombre exacto + ciudad;
@@ -40,4 +47,4 @@ Durante una investigación SIC, cada reseña se persiste automáticamente como e
 
 Debe ser la última acción lógica. Envía el perfil estructurado final a SIC.
 
-No llames esta tool hasta haber realizado varias consultas útiles o haber agotado las fuentes razonables.
+No llames esta tool hasta haber realizado varias consultas útiles o haber agotado las fuentes razonables Y comprobar que las evidencias Chrome pendientes fueron confirmadas por SIC.
