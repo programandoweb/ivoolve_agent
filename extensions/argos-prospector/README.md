@@ -52,7 +52,7 @@ Con la extensión abierta y socket conectado, en el dashboard del agente Argos e
 
 > Busca 10 empresas automotrices en Pereira usando prospecting.browser_maps_search. Recupera y enumera únicamente fichas que realmente devuelva el navegador, con sus enlaces de Maps.
 
-Para persistir automáticamente en SIC, inicia una campaña real desde SIC. Las búsquedas interactivas en el chat solo muestran resultados: no crean ejecuciones SIC falsas. Revisa el histórico y las trazas de tools del agente.
+Las búsquedas **desde el chat autenticado de Argos** también envían automáticamente los resultados observados al catálogo de prospectos SIC mediante el endpoint interno `POST /api/internal/agent/argos/prospects`; no crean campañas ni ejecuciones SIC artificiales. En las campañas reales se conserva la persistencia con ejecución y relación con campaña. Requiere desplegar las versiones nuevas de ambos repositorios y mantener configurados `IVOOLVE_SIC_BASE_URL` y `IVOOLVE_SIC_INTERNAL_TOKEN` en Agent. Revisa el histórico y las trazas de tools del agente.
 
 ## Restricciones y soporte
 
