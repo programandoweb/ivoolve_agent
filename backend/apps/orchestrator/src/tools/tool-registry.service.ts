@@ -52,6 +52,8 @@ export class ToolRegistryService {
         arguments: {
           query: 'Actividad y ciudad, por ejemplo: empresas automotrices en Pereira',
           maxResults: 'Objetivo de 1 a 100 empresas por consulta; Maps puede mostrar menos',
+          city: 'Ciudad explícita dada por el usuario o la campaña, sin inferirla',
+          department: 'Departamento explícito dado por el usuario o la campaña',
         },
       },
       {
@@ -241,6 +243,8 @@ export class ToolRegistryService {
         const query = this.requiredString(call, 'query');
         const maxResults = this.optionalNumber(call, 'maxResults', 20);
         const results = await this.argosBrowser.search(query, maxResults);
+        const city = this.cityFromCampaign(context.campaignContext) ?? this.optionalString(call, 'city');
+        const department = this.departmentFromCampaign(context.campaignContext) ?? this.optionalString(call, 'department');
         const browserProspects = results.map(item => ({
           name: item.name, address: item.address, phone: item.phone,
           website: item.website, mapsUrl: item.mapsUrl, placeId: item.placeId,
@@ -249,8 +253,7 @@ export class ToolRegistryService {
           category: item.category, rating: item.rating,
           userRatingCount: item.userRatingCount,
           searchQuery: query,
-          city: this.cityFromCampaign(context.campaignContext),
-          department: this.departmentFromCampaign(context.campaignContext),
+          city, department,
           country: 'CO', capturedAt: item.capturedAt,
         }));
 
@@ -262,7 +265,7 @@ export class ToolRegistryService {
             saved.push(await this.sic.upsertProspect(context.executionId, prospect));
           }
           persistence = {
-            mode: 'automatic_campaign',
+            mode: 'automatic',
             executionId: context.executionId,
             savedCount: saved.length,
             prospects: saved,
