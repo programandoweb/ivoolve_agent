@@ -66,7 +66,7 @@ export class ToolRegistryService {
       {
         name: 'prospecting.google_maps_search',
         description:
-          'Busca empresas reales en Google Maps/Places. Debe ser la fuente primaria para descubrir prospectos.',
+          'Busca empresas vía Google Places API. En Hermes requiere autorización explícita; la extensión Chrome es el único modo por defecto.',
         arguments: {
           query:
             'Consulta natural incluyendo actividad y ubicación, por ejemplo: empresas de confección en Pereira Risaralda',
@@ -76,7 +76,7 @@ export class ToolRegistryService {
       {
         name: 'prospecting.google_search',
         description:
-          'Busca información pública en Google Programmable Search Engine para enriquecer un prospecto ya identificado. En una investigación SIC activa, cada resultado se persiste automáticamente como evidencia.',
+          'Google Programmable Search API. Hermes solo puede usarla si el operador autoriza Google API explícitamente en el mensaje actual. Chrome y persistencia SIC siempre son prioritarios.',
         arguments: {
           query: 'Consulta específica de enriquecimiento',
           maxResults: 'Cantidad opcional de resultados entre 1 y 10',
@@ -85,7 +85,7 @@ export class ToolRegistryService {
       {
         name: 'prospecting.google_maps_reviews',
         description:
-          'Obtiene reseñas públicas de Google Maps/Places para un prospecto identificado y las persiste como evidencias durante una investigación SIC.',
+          'Google Maps/Places Reviews API: solo Hermes con autorización Google API explícita en el mensaje actual. Persistir resultados en SIC cuando exista investigación.',
         arguments: {
           placeId: 'Place ID de Google Maps cuando ya está disponible',
           query: 'Consulta exacta del negocio como fallback si no se conoce placeId',
@@ -290,6 +290,9 @@ export class ToolRegistryService {
       }
 
       case 'prospecting.google_maps_search': {
+        if (context.agentId === 'hermes-researcher' && !context.allowGoogleApi) {
+          throw new ForbiddenException('Google API bloqueada para Hermes: utiliza la extensión Chrome y guarda en SIC. Autorización explícita requerida en el mensaje actual: AUTORIZO GOOGLE API.');
+        }
         const query = this.requiredString(call, 'query');
         const maxResults = this.optionalNumber(call, 'maxResults', 10);
         const results = await this.googleProspecting.searchPlaces(
@@ -335,6 +338,9 @@ export class ToolRegistryService {
       }
 
       case 'prospecting.google_search': {
+        if (context.agentId === 'hermes-researcher' && !context.allowGoogleApi) {
+          throw new ForbiddenException('Google API bloqueada para Hermes: utiliza la extensión Chrome y guarda en SIC. Autorización explícita requerida en el mensaje actual: AUTORIZO GOOGLE API.');
+        }
         const query = this.requiredString(call, 'query');
         const maxResults = this.optionalNumber(call, 'maxResults', 10);
         const results = await this.googleProspecting.searchWeb(
@@ -372,6 +378,9 @@ export class ToolRegistryService {
       }
 
       case 'prospecting.google_maps_reviews': {
+        if (context.agentId === 'hermes-researcher' && !context.allowGoogleApi) {
+          throw new ForbiddenException('Google API bloqueada para Hermes: utiliza la extensión Chrome y guarda en SIC. Autorización explícita requerida en el mensaje actual: AUTORIZO GOOGLE API.');
+        }
         const requestedPlaceId = this.optionalString(call, 'placeId');
         const query = this.optionalString(call, 'query');
         const maxReviews = this.optionalNumber(call, 'maxReviews', 5);
