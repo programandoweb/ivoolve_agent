@@ -61,3 +61,11 @@ Las búsquedas **desde el chat autenticado de Argos** también envían automáti
 - Cuando Google muestre un desafío de acceso o cambie su HTML, la extensión debe detenerse o devolver los campos visibles disponibles; nunca automatizar la evasión.
 - `maxResults` es un objetivo. 5 segundos son el retardo entre scrolls, no la garantía de respuesta del sitio.
 - `sourceType=google_maps` mantiene la compatibilidad con la deduplicación actual en SIC, con `capturedAt` y `searchQuery` como trazabilidad.
+
+## Recuperación automática cuando SIC falla
+
+La búsqueda terminada por Chrome se almacena como un **outbox de base de datos MariaDB en Ivoolve Agent** antes de empezar a sincronizar con SIC. Si SIC devuelve 500 o hay un corte de red, los datos y enlaces originales permanecen en Agent y cada ficha registra intentos, último error, próximo reintento y el ID confirmado por SIC cuando se completa. El backend reintenta en intervalos de 30 segundos, aplicando backoff por elemento. **No es necesario repetir la búsqueda**.
+
+En el dashboard de Argos abre **Sincronización SIC**: `/dashboard/agents/argos-prospector?tab=sync`. Allí se ven pendientes, errores y confirmados, y puedes pulsar **Reintentar** individualmente o **Reintentar pendientes** para todos los registros mostrados hasta el máximo del lote. La lista está protegida por login y separada por tenant.
+
+La base de datos Agent debe estar operativa (`DATABASE_URL`); sin MariaDB la herramienta se detiene explícitamente en lugar de declarar que guardó resultados. No se inventan campañas: en búsquedas por chat usa la importación interna, y en campañas conserva el `executionId` original. Los registros confirmados no se vuelven a enviar. Esta garantía cubre resultados recibidos y persistidos por la **nueva versión** de Agent; no recupera automáticamente búsquedas antiguas que fallaron antes de desplegar la outbox.
