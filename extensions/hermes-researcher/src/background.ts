@@ -12,7 +12,16 @@ async function pending():Promise<Pending|undefined> {return (await chrome.storag
 async function deliver(){ const item=await pending();if(item && socket?.connected)socket.emit('hermes:result',{...item,status:'success'}); }
 async function collect(task:Task):Promise<Evidence[]>{
  if(!/^[0-9a-f-]{36}$/i.test(task.taskId)||!task.researchId||!task.prospectId||!Array.isArray(task.queries))throw Error('INVALID_TASK');
- const queries=task.queries.filter(q=>typeof q==='string'&&q.length>=2&&q.length<=160).slice(0,Math.min(task.maxPages||5,8));
+ const queries=task.queries.filter(q=>typeof q==='string'&&q.length>=2&&q.length<=160).slice(0,Math.min(task.maxPages||8,8));
+// Only explicitly allowlisted public sites are followed from search results.
+const directHosts = (host: string) => [
+  'dian.gov.co','colombiacompra.gov.co','rues.org.co','camarapereira.org.co',
+  'instagram.com','facebook.com','linkedin.com',
+].some(domain => host === domain || host === 'www.' + domain || host.endsWith('.' + domain));
+const toDirect = (links: Array<{url:string}>) => links.map(link => {
+  try { return new URL(link.url); } catch { return undefined; }
+}).find(link => link?.protocol === 'https:' && directHosts(link.hostname))?.href;
+
  if(!queries.length)throw Error('NO_QUERIES');
  const observations:Evidence[]=[];
  const tab=await chrome.tabs.create({url:'about:blank',active:true});
@@ -20,17 +29,47 @@ async function collect(task:Task):Promise<Evidence[]>{
  try{
   for(const query of queries){
    if(cancelled)throw Error('CANCELLED');
-   const url='https://www.google.com/search?q='+encodeURIComponent(query);
+   const isImages=query.startsWith('IMAGE:');
+   const textQuery=isImages?query.slice(6).trim():query;
+   const url='https://www.google.com/search?q='+encodeURIComponent(textQuery)+(isImages?'&tbm=isch':'');
    await chrome.tabs.update(tab.id,{url,active:true});
    await pause(3500);
-   let observation:{url:string;title:string;text:string;links:{title:string;url:string}[];capturedAt:string};
+   let observation:{url:string;title:string;text:string;links:{title:string;url:string}[];
+    images?:Array<{alt:string;thumbnailUrl:string;landingPageUrl?:string;sourcePageUrl:string;obtainedVia:string}>;
+    capturedAt:string;obtainedVia:string;access:string};
    try { observation=await chrome.tabs.sendMessage(tab.id,{type:'HERMES_OBSERVE'}); }
    catch{await publish({phase:'Fuente no accesible: '+url});continue;}
-   if(!observation?.url?.startsWith('https://www.google.com/search'))continue;
-   observations.push({sourceType:'google_search_browser',url:observation.url,title:observation.title,fetchedAt:observation.capturedAt,
-      result:JSON.stringify({text:observation.text,links:observation.links,query}),
-      extracted:{query,links:observation.links},summary:observation.text.slice(0,700),confidence:0.65});
-   await publish({phase:'Fuente observada: '+query,count:observations.length,sources:observations.map(e=>e.url)});
+   if(!observation?.url?.startsWith('https://www.google.com/search') || observation.access!=='public_visible'){
+    await publish({phase:'Fuente no disponible o bloqueada: '+textQuery});continue;
+   }
+   const images=(observation.images||[]).slice(0,10);
+   observations.push({sourceType:isImages?'google_images_browser':'google_search_browser',url:observation.url,title:observation.title,
+    fetchedAt:observation.capturedAt,
+    result:JSON.stringify({text:observation.text.slice(0,7000),links:observation.links.slice(0,15),images,query:textQuery}),
+    extracted:{query:textQuery,images,links:observation.links.slice(0,15),obtainedVia:observation.obtainedVia,
+      sourcePageUrl:observation.url,verificationStatus:'search_index_unverified',imageUsageRights:'not_verified'},
+    summary:observation.text.slice(0,650),confidence:0.4});
+   // Official registry or public profile: capture its OWN rendered DOM, not
+   // only Google's snippet. If access is restricted, do not fabricate evidence.
+   if(!isImages){
+    const direct=toDirect(observation.links);
+    if(direct){
+     try{
+      await chrome.tabs.update(tab.id,{url:direct,active:true});await pause(3000);
+      const actual=await chrome.tabs.sendMessage(tab.id,{type:'HERMES_OBSERVE'}) as typeof observation;
+      if(actual?.url?.startsWith(new URL(direct).origin) && actual.access==='public_visible'){
+       observations.push({sourceType:new URL(direct).hostname.endsWith('.gov.co')?'colombia_government_browser':
+        /rues\.org\.co|camarapereira\.org\.co/.test(new URL(direct).hostname)?'commerce_registry_browser':'public_social_profile_browser',
+        url:actual.url,title:actual.title,fetchedAt:actual.capturedAt,
+        result:JSON.stringify({text:actual.text.slice(0,9500),links:actual.links.slice(0,15)}),
+        extracted:{obtainedVia:actual.obtainedVia,discoveredVia:observation.url,sourcePageUrl:actual.url,
+          verificationStatus:'direct_public_page_observed'},
+        summary:actual.text.slice(0,650),confidence:0.85});
+      }else await publish({phase:'Página inaccesible: '+direct});
+     }catch{await publish({phase:'Página restringida o no accesible: '+direct});}
+    }
+   }
+   await publish({phase:'Fuente observada: '+textQuery,count:observations.length,sources:observations.map(e=>e.url)});
    await pause(1500);
   }
   return observations;
