@@ -14,11 +14,13 @@ export class HermesBrowserGateway implements OnGatewayConnection,OnGatewayDiscon
   if(!extensionId||(allow.length>0&&!allow.includes(extensionId))){
    socket.emit('hermes:error',{message:'Se requiere la extensión Hermes instalada en Chrome.'});socket.disconnect(true);return;
   }
-  if(await this.pairing.valid(socket.handshake.auth?.deviceToken)){
-   if(!this.browser.connect(socket)){
+  const tenantId=await this.pairing.resolveTenant(socket.handshake.auth?.deviceToken);
+  if(tenantId){
+   if(!this.browser.connect(socket,tenantId)){
     socket.emit('hermes:error',{message:'Ya existe un dispositivo Hermes conectado.'});socket.disconnect(true);return;
    }
    socket.data.hermesAuthorized=true;
+   socket.data.hermesTenantId=tenantId;
    socket.emit('hermes:ready',{agent:'hermes-researcher',queueDepth:this.browser.queueDepth});
    return;
   }
