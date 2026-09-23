@@ -24,11 +24,16 @@ const RULES = [
 ].join('\n');
 
 const builtin = [
-  { id: 'builtin-textil', title: 'Confección textil', description: 'Talleres, maquilas y fabricantes de prendas.', sector: 'confección textil y fábricas de ropa', defaultCity: 'Pereira', defaultDepartment: 'Risaralda', defaultQuantity: 10 },
-  { id: 'builtin-calzado', title: 'Fabricantes de calzado', description: 'Fábricas de zapatos y talleres de producción.', sector: 'fabricantes de calzado y fábricas de zapatos', defaultCity: 'Pereira', defaultDepartment: 'Risaralda', defaultQuantity: 10 },
-  { id: 'builtin-textil-calzado', title: 'Textil y calzado', description: 'Busca fabricantes de ropa, textiles y zapatos.', sector: 'confección textil, fábricas de ropa y fábricas de zapatos', defaultCity: 'Pereira', defaultDepartment: 'Risaralda', defaultQuantity: 10 },
-  { id: 'builtin-automotriz', title: 'Sector automotriz', description: 'Talleres y empresas relacionadas con automotores.', sector: 'empresas del sector automotriz', defaultCity: 'Pereira', defaultDepartment: 'Risaralda', defaultQuantity: 10 },
-  { id: 'builtin-libre', title: 'Búsqueda B2B personalizada', description: 'Define actividad, ciudad y cantidad objetivo.', sector: 'empresas fabricantes', defaultCity: 'Pereira', defaultDepartment: 'Risaralda', defaultQuantity: 10 },
+  { id: 'builtin-textil', title: 'Confección textil', description: 'Fábricas, maquilas y talleres de confección.', sector: 'confección textil y fábricas de ropa', defaultCity: 'Pereira', defaultDepartment: 'Risaralda', defaultQuantity: 10 },
+  { id: 'builtin-calzado', title: 'Fábricas de zapatos', description: 'Fabricantes de zapatos, marroquinería y talleres.', sector: 'fabricantes de calzado y fábricas de zapatos', defaultCity: 'Pereira', defaultDepartment: 'Risaralda', defaultQuantity: 10 },
+  { id: 'builtin-estetica', title: 'Centros estéticos y manicuristas', description: 'Centros de estética, uñas y belleza.', sector: 'centros estéticos y manicuristas', defaultCity: 'Dosquebradas', defaultDepartment: 'Risaralda', defaultQuantity: 10 },
+  { id: 'builtin-automotriz', title: 'Empresas automotrices', description: 'Talleres mecánicos y negocios del sector automotriz.', sector: 'empresas del sector automotriz', defaultCity: 'Pereira', defaultDepartment: 'Risaralda', defaultQuantity: 10 },
+  { id: 'builtin-boutiques', title: 'Boutiques femeninas', description: 'Boutiques y tiendas de ropa femenina.', sector: 'boutiques y tiendas de ropa femenina', defaultCity: 'Pereira', defaultDepartment: 'Risaralda', defaultQuantity: 10 },
+  { id: 'builtin-turismo', title: 'Agencias de turismo', description: 'Operadores y agencias de viajes locales.', sector: 'agencias de viajes y operadores turísticos', defaultCity: 'Pereira', defaultDepartment: 'Risaralda', defaultQuantity: 10 },
+  { id: 'builtin-restaurantes', title: 'Restaurantes', description: 'Restaurantes y negocios gastronómicos.', sector: 'restaurantes y negocios gastronómicos', defaultCity: 'Dosquebradas', defaultDepartment: 'Risaralda', defaultQuantity: 10 },
+  { id: 'builtin-constructoras', title: 'Constructoras y ferreterías', description: 'Constructoras, ferreterías y materiales de construcción.', sector: 'constructoras, ferreterías y proveedores de materiales de construcción', defaultCity: 'Pereira', defaultDepartment: 'Risaralda', defaultQuantity: 10 },
+  { id: 'builtin-muebles', title: 'Fabricantes de muebles', description: 'Carpinterías, talleres y fábricas de mobiliario.', sector: 'fabricantes de muebles y carpinterías', defaultCity: 'Dosquebradas', defaultDepartment: 'Risaralda', defaultQuantity: 10 },
+  { id: 'builtin-distribuidoras', title: 'Distribuidoras mayoristas', description: 'Negocios mayoristas y distribuidores comerciales.', sector: 'distribuidoras mayoristas y comercializadoras', defaultCity: 'Pereira', defaultDepartment: 'Risaralda', defaultQuantity: 10 },
 ].map(t => ({
   ...t, builtin: true,
   promptTemplate: 'Investiga {{quantity}} empresas reales del sector {{sector}} en {{city}}, {{department}}, Colombia. Busca empresas diferentes, conserva nombres, teléfonos, direcciones, sitios web, categorías, calificaciones y enlaces de Google Maps solo cuando estén visibles.\n\n' + RULES,
