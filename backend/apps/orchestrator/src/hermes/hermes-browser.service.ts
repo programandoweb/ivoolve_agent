@@ -2,30 +2,32 @@ import { Injectable, ServiceUnavailableException, BadRequestException } from '@n
 import { randomUUID } from 'node:crypto';
 import type { Socket } from 'socket.io';
 import { HermesEvidence, HermesEvidenceOutboxService } from './hermes-evidence-outbox.service';
-type Task={taskId:string;researchId:string;prospectId:string;prospectName:string;queries:string[];maxPages:number;resolve:(value:unknown)=>void;reject:(error:Error)=>void;timer:ReturnType<typeof setTimeout>};
+type Task={tenantId:string;taskId:string;researchId:string;prospectId:string;prospectName:string;queries:string[];maxPages:number;resolve:(value:unknown)=>void;reject:(error:Error)=>void;timer:ReturnType<typeof setTimeout>};
 @Injectable()
 export class HermesBrowserService{
  private worker?:Socket;
+ private workerTenantId?:string;
  private active?:Task;
  private readonly queue:Task[]=[];
  constructor(private readonly outbox:HermesEvidenceOutboxService){}
  get available(){return Boolean(this.worker?.connected);}
  get queueDepth(){return this.queue.length+Number(Boolean(this.active));}
- connect(socket:Socket){if(this.worker?.connected)return false;this.worker=socket;this.dispatch();return true;}
+ connect(socket:Socket,tenantId:string){if(this.worker?.connected)return false;this.worker=socket;this.workerTenantId=tenantId;this.dispatch();return true;}
  disconnect(socket:Socket){
   if(this.worker?.id!==socket.id)return;
   this.worker=undefined;
+  this.workerTenantId=undefined;
   if(this.active){const t=this.active;this.active=undefined;clearTimeout(t.timer);t.reject(Error('HERMES_BROWSER_DISCONNECTED')); }
  }
  async investigate(context:{researchId:string;prospectId:string;tenantId:string;prospectName:string},queries:string[]){
-  if(!this.available)throw new ServiceUnavailableException('Conecta la extensión Chrome Hermes antes de investigar.');
+  if(!this.available||this.workerTenantId!==context.tenantId)throw new ServiceUnavailableException('Conecta una extensión Hermes autorizada para este tenant.');
   if(!context.researchId||!context.prospectId||!context.tenantId)throw new BadRequestException('Hermes requiere investigación y prospecto SIC auténticos.');
   const safe=queries.filter(q=>typeof q==='string'&&q.length>1&&q.length<=160).slice(0,8);
   if(!safe.length)throw new BadRequestException('Proporciona consultas de investigación específicas.');
   const taskId=randomUUID();
   await this.outbox.register({taskId,tenantId:context.tenantId,researchId:context.researchId,prospectId:context.prospectId});
   return new Promise((resolve,reject)=>{
-   const task:Task={taskId,researchId:context.researchId,prospectId:context.prospectId,
+   const task:Task={tenantId:context.tenantId,taskId,researchId:context.researchId,prospectId:context.prospectId,
     prospectName:context.prospectName.slice(0,180),queries:safe,maxPages:safe.length,resolve,reject,
     timer:setTimeout(()=>{
      if(this.active?.taskId===taskId){this.active=undefined;this.worker?.emit('hermes:cancel',{taskId});}
@@ -62,7 +64,9 @@ export class HermesBrowserService{
  }
  private dispatch(){
   if(!this.worker?.connected||this.active)return;
-  const t=this.queue.shift();if(!t)return;
+  const index=this.queue.findIndex(t=>t.tenantId===this.workerTenantId);
+  if(index<0)return;
+  const [t]=this.queue.splice(index,1);
   this.active=t;
   this.worker.emit('hermes:task',{taskId:t.taskId,researchId:t.researchId,prospectId:t.prospectId,prospectName:t.prospectName,queries:t.queries,maxPages:t.maxPages});
  }
