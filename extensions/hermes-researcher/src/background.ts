@@ -14,10 +14,9 @@ async function collect(task:Task):Promise<Evidence[]>{
  if(!/^[0-9a-f-]{36}$/i.test(task.taskId)||!task.researchId||!task.prospectId||!Array.isArray(task.queries))throw Error('INVALID_TASK');
  const queries=task.queries.filter(q=>typeof q==='string'&&q.length>=2&&q.length<=160).slice(0,Math.min(task.maxPages||8,8));
 // Only explicitly allowlisted public sites are followed from search results.
-const directHosts = (host: string) => [
-  'dian.gov.co','colombiacompra.gov.co','rues.org.co','camarapereira.org.co',
-  'instagram.com','facebook.com','linkedin.com',
-].some(domain => host === domain || host === 'www.' + domain || host.endsWith('.' + domain));
+const directHosts = (host: string) => host.endsWith('.gov.co') || [
+  'rues.org.co','camarapereira.org.co','instagram.com','facebook.com','linkedin.com',
+].some(domain => host === domain || host.endsWith('.' + domain));
 const toDirect = (links: Array<{url:string}>) => links.map(link => {
   try { return new URL(link.url); } catch { return undefined; }
 }).find(link => link?.protocol === 'https:' && directHosts(link.hostname))?.href;
