@@ -18,3 +18,11 @@ button:hover{filter:brightness(1.15)}button:disabled{cursor:wait;opacity:.65}.fe
 .steps ol{margin:0;padding-left:19px;color:#c3bed5;font-size:12px;line-height:2.2}.steps b{color:#e9d5ff}
 footer{display:flex;justify-content:space-between;color:#8c86a8;font-size:10px;letter-spacing:1px;margin:3px 0 10px}.pulse{display:inline-block;width:7px;height:7px;background:#a78bfa;border-radius:50%;margin-right:6px}
 @media(max-width:350px){.metrics{grid-template-columns:1fr}.brand-text h1{font-size:14px}.brand-text h1 span{font-size:10px}}
+
+.pairing{border:1px solid #a78bfa99;border-radius:14px;padding:14px;margin-bottom:18px;background:linear-gradient(125deg,#2e2056,#201d40);text-align:center}
+.pairing[hidden]{display:none!important}
+.pairing .pairing-eyebrow{font-size:10px;letter-spacing:2px;font-weight:800;color:#d8b4fe}
+.pairing p{font-size:12px;line-height:1.6;color:#ddd6fe}
+.pairing-code{font-size:37px;font-weight:900;letter-spacing:8px;color:#fff;margin:15px 0;font-variant-numeric:tabular-nums}
+.pairing small{display:block;color:#aca4cb;font-size:10px;margin-bottom:12px}
+.pairing a{display:block;border:1px solid #a78bfa;border-radius:9px;color:#f5f3ff;text-decoration:none;padding:10px;font-weight:800;font-size:12px}
