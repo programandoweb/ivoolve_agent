@@ -2,7 +2,7 @@ import { io, type Socket } from 'socket.io-client';
 
 type Place = { name: string; mapsUrl: string; address?: string; phone?: string; website?: string; category?: string; rating?: number; userRatingCount?: number; placeId?: string };
 type Task = { taskId: string; type: 'MAPS_SEARCH'; query: string; maxResults: number; scrollDelayMs: number };
-type State = { connected: boolean; collected: number; running: boolean; error?: string; serverUrl: string; phase?: string };
+type State = { connected: boolean; collected: number; running: boolean; error?: string; serverUrl: string; phase?: string; pairingCode?: string; pairingExpiresAt?: string };
 let socket: Socket | undefined;
 let running = false;
 let cancelled = false;
@@ -71,7 +71,7 @@ async function search(task: Task): Promise<Place[]> {
   }
 }
 async function connect() {
-  const cfg = await chrome.storage.local.get('serverUrl');
+  const cfg = await chrome.storage.local.get(['serverUrl', 'argosDeviceToken']);
   const serverUrl = String(cfg.serverUrl || state.serverUrl).replace(/\/$/, '');
   if (!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(serverUrl) && serverUrl !== 'http://localhost:5020') {
     publish({ connected: false, error: 'Dirección del socket inválida.' }); return;
@@ -80,10 +80,20 @@ async function connect() {
   socket = io(serverUrl + '/argos-browser', {
     transports: ['websocket'], reconnection: true, reconnectionDelay: 2000,
     reconnectionDelayMax: 30000, timeout: 12000,
+    auth: { deviceToken: cfg.argosDeviceToken || undefined },
   });
-  publish({ serverUrl, connected: false, error: undefined, phase: 'Conectando' });
+  publish({ serverUrl, connected: false, error: undefined, pairingCode: undefined, pairingExpiresAt: undefined, phase: 'Conectando' });
+  socket.on('argos:pair:code', ({ code, expiresAt }: { code: string; expiresAt: string }) => {
+    publish({ connected: false, error: undefined, pairingCode: code, pairingExpiresAt: expiresAt, phase: 'Esperando autorización en el dashboard de Argos' });
+  });
+  socket.on('argos:paired', async ({ token }: { token: string }) => {
+    if (!/^[a-f0-9]{64}$/.test(token)) return;
+    await chrome.storage.local.set({ argosDeviceToken: token });
+    // El servidor comprueba la credencial en una conexión nueva.
+    void connect();
+  });
   socket.on('connect', () => publish({ connected: false, error: undefined, phase: 'Socket conectado; esperando aceptación del servidor' }));
-  socket.on('argos:ready', () => publish({ connected: true, error: undefined, phase: 'Preparado para recibir tareas' }));
+  socket.on('argos:ready', () => publish({ connected: true, error: undefined, pairingCode: undefined, pairingExpiresAt: undefined, phase: 'Preparado para recibir tareas' }));
   socket.on('argos:error', ({ message }: { message?: string }) =>
     publish({ connected: false, phase: 'Rechazado por el servidor', error: message || 'Conexión rechazada: comprueba ARGOS_BROWSER_DIRECT_ENABLED y el acceso privado' }));
   socket.on('disconnect', (reason: string) => publish({ connected: false, phase: 'Desconectado', error: 'Socket desconectado: '+reason }));
