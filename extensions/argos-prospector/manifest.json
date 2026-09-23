@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Ivoolve Argos · Prospecting",
+  "short_name": "Argos",
+  "version": "1.0.0",
+  "minimum_chrome_version": "116",
+  "description": "El explorador de Argos. Recibe campañas mediante Socket.IO, busca empresas visibles en Google Maps, avanza cada 5 segundos, registra sus fichas públicas y entrega resultados al orquestador Ivoolve sin APIs de búsqueda.",
+  "permissions": ["tabs", "storage"],
+  "host_permissions": ["https://www.google.com/maps/*", "https://www.google.com.co/maps/*", "https://maps.google.com/*", "http://localhost:5020/*", "https://*.programandoweb.net/*"],
+  "background": { "service_worker": "dist/background.js", "type": "module" },
+  "action": {
+    "default_title": "Argos · Prospecting",
+    "default_popup": "popup.html",
+    "default_icon": { "16": "dist/icon-16.png", "32": "dist/icon-32.png", "48": "dist/icon-48.png" }
+  },
+  "icons": { "16": "dist/icon-16.png", "32": "dist/icon-32.png", "48": "dist/icon-48.png", "128": "dist/icon-128.png" },
+  "content_scripts": [{
+    "matches": ["https://www.google.com/maps/*", "https://www.google.com.co/maps/*", "https://maps.google.com/*"],
+    "js": ["dist/maps.js"],
+    "run_at": "document_idle"
+  }]
+}
