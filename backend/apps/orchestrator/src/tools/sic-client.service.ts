@@ -17,6 +17,18 @@ export class SicClientService {
     return this.post('internal/agent/campaign-runs/' + executionId + '/fail', { error });
   }
 
+  // El chat de Argos no tiene campaignRun; usa un endpoint interno específico
+  // con la misma deduplicación y auditoría de SIC.
+  async importArgosProspects(prospects: Record<string, unknown>[]): Promise<{
+    savedCount: number;
+    prospects: Array<{ id: string; name?: string }>;
+  }> {
+    return this.post('internal/agent/argos/prospects', { prospects }) as Promise<{
+      savedCount: number;
+      prospects: Array<{ id: string; name?: string }>;
+    }>;
+  }
+
   async upsertProspect(executionId: string, prospect: Record<string, unknown>): Promise<unknown> {
     return this.post('internal/agent/campaign-runs/' + executionId + '/prospects', prospect);
   }
