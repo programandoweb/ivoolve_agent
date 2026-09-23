@@ -26,12 +26,26 @@ export class HermesEvidenceOutboxService implements OnModuleInit, OnModuleDestro
   if(!this.db.enabled)throw new ServiceUnavailableException('MariaDB no disponible; conservar lote en Chrome.');
   const [task]=await this.db.query<TaskRow[]>('SELECT tenant_id,research_id,prospect_id FROM hermes_browser_tasks WHERE task_id=? LIMIT 1',[body.taskId]);
   if(!task||task.research_id!==body.researchId||task.prospect_id!==body.prospectId)throw new BadRequestException('Tarea Hermes no autorizada por SIC/Agent.');
-  if(!Array.isArray(body.evidence)||body.evidence.length>8)throw new BadRequestException('Cantidad de evidencias inválida.');
+  if(!Array.isArray(body.evidence)||body.evidence.length>16)throw new BadRequestException('Cantidad de evidencias inválida.');
   for(const evidence of body.evidence){
-   if(!evidence||!/^https:\/\/www\.google\.(com|com\.co)\/search\?/.test(evidence.url)
+   if(!evidence || typeof evidence.url!=='string' || typeof evidence.sourceType!=='string'
     ||typeof evidence.result!=='string'||evidence.result.length>40000
     ||typeof evidence.summary!=='string'||evidence.summary.length>1500)
-      throw new BadRequestException('Evidencia fuera del alcance del adaptador Google público.');
+      throw new BadRequestException('Evidencia incompleta o sobredimensionada.');
+   let parsed:URL;
+   try { parsed=new URL(evidence.url); } catch { throw new BadRequestException('URL de evidencia inválida.'); }
+   const host=parsed.hostname.toLowerCase();
+   const domainAllowed=(root:string)=>host===root || host.endsWith('.'+root);
+   const search=domainAllowed('google.com')||domainAllowed('google.com.co');
+   const allowed=(evidence.sourceType==='google_search_browser'||evidence.sourceType==='google_images_browser')
+     ? search && parsed.pathname==='/search'
+     : evidence.sourceType==='colombia_government_browser'
+       ? domainAllowed('dian.gov.co')||domainAllowed('colombiacompra.gov.co')
+       : evidence.sourceType==='commerce_registry_browser'
+         ? domainAllowed('rues.org.co')||domainAllowed('camarapereira.org.co')
+         : evidence.sourceType==='public_social_profile_browser'
+           ? domainAllowed('instagram.com')||domainAllowed('facebook.com')||domainAllowed('linkedin.com') : false;
+   if(parsed.protocol!=='https:'||!allowed)throw new BadRequestException('URL y tipo de fuente no coinciden.');
   }
   for(const evidence of body.evidence){
    const hash=createHash('sha256').update(evidence.url+'\n'+evidence.result).digest('hex');
@@ -48,14 +62,17 @@ export class HermesEvidenceOutboxService implements OnModuleInit, OnModuleDestro
   return {stored:rows.reduce((s,r)=>s+Number(r.count),0),synced:count('synced'),pending:count('pending')+count('processing')+count('failed')};
  }
  async hasPending(researchId:string,tenantId:string){const [r]=await this.db.query<Array<RowDataPacket&{total:number}>>(
-   "SELECT COUNT(*) AS total FROM hermes_sic_outbox WHERE research_id=? AND tenant_id=? AND status<>'synced'",[researchId,tenantId]);return Number(r?.total||0)>0;}
+   "SELECT COUNT(*) AS total FROM hermes_sic_outbox WHERE research_id=? AND tenant_id=? AND status<>'synced'",[researchId,tenantId]);
+  const [active]=await this.db.query<Array<RowDataPacket&{total:number}>>(
+   "SELECT COUNT(*) AS total FROM hermes_browser_tasks WHERE research_id=? AND tenant_id=? AND status='dispatched'",[researchId,tenantId]);
+  return Number(r?.total||0)+Number(active?.total||0)>0;}
  async list(tenantId:string){
   return this.db.query<Row[]>(`SELECT id,task_id,research_id,prospect_id,status,attempts,last_error,created_at,synced_at
   FROM hermes_sic_outbox WHERE tenant_id=? ORDER BY created_at DESC LIMIT 100`,[tenantId]);
  }
  async retry(id:string,tenantId:string){
-  await this.db.execute("UPDATE hermes_sic_outbox SET status='pending',next_attempt_at=NULL WHERE id=? AND tenant_id=? AND status IN ('pending','failed')",[id,tenantId]);
-  await this.sendOne(id);
+  const changed=await this.db.execute("UPDATE hermes_sic_outbox SET status='pending',next_attempt_at=NULL WHERE id=? AND tenant_id=? AND status IN ('pending','failed')",[id,tenantId]);
+  if(changed.affectedRows===1)await this.sendOne(id);
   return {ok:true};
  }
  async retryAll(tenantId:string){
@@ -89,6 +106,12 @@ export class HermesEvidenceOutboxService implements OnModuleInit, OnModuleDestro
     result:evidence.result,extracted:evidence.extracted,summary:evidence.summary,confidence:evidence.confidence,
    });
    await this.db.execute("UPDATE hermes_sic_outbox SET status='synced',synced_at=?,locked_at=NULL,last_error=NULL,next_attempt_at=NULL,updated_at=? WHERE id=?",[new Date(),new Date(),id]);
+   // A task is marked synced only after SIC ACKs every stored evidence.
+   const [remaining]=await this.db.query<Array<RowDataPacket&{total:number}>>(
+    "SELECT COUNT(*) AS total FROM hermes_sic_outbox WHERE task_id=? AND status<>'synced'",[row.task_id]);
+   if(Number(remaining?.total||0)===0){
+    await this.db.execute("UPDATE hermes_browser_tasks SET status='synced' WHERE task_id=? AND status='stored'",[row.task_id]);
+   }
    return true;
   }catch(error){
    const message=(error instanceof Error?error.message:String(error)).slice(0,1200);
