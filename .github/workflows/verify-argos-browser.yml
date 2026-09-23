@@ -1,0 +1,40 @@
+name: Verify Argos Browser Extension
+
+on:
+  push:
+    paths:
+      - 'extensions/argos-prospector/**'
+      - '.github/workflows/verify-argos-browser.yml'
+  pull_request:
+    paths:
+      - 'extensions/argos-prospector/**'
+      - '.github/workflows/verify-argos-browser.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-extension:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extensions/argos-prospector
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install
+      - name: Bundle service worker, scripts and brand icons
+        run: npm run build
+      - name: Validate manifest and produced assets
+        run: |
+          node -e "const m=require('./manifest.json'); if (m.manifest_version!==3||!m.background||!m.action) process.exit(1)"
+          test -s dist/background.js
+          test -s dist/maps.js
+          test -s dist/popup.js
+          test -s dist/icon-16.png
+          test -s dist/icon-32.png
+          test -s dist/icon-48.png
+          test -s dist/icon-128.png
