@@ -26,7 +26,7 @@ export class HermesEvidenceOutboxService implements OnModuleInit, OnModuleDestro
   if(!this.db.enabled)throw new ServiceUnavailableException('MariaDB no disponible; conservar lote en Chrome.');
   const [task]=await this.db.query<TaskRow[]>('SELECT tenant_id,research_id,prospect_id FROM hermes_browser_tasks WHERE task_id=? LIMIT 1',[body.taskId]);
   if(!task||task.tenant_id!==body.tenantId||task.research_id!==body.researchId||task.prospect_id!==body.prospectId)throw new BadRequestException('Tarea Hermes no autorizada por SIC/Agent.');
-  if(!Array.isArray(body.evidence)||body.evidence.length>16)throw new BadRequestException('Cantidad de evidencias inválida.');
+  if(!Array.isArray(body.evidence)||body.evidence.length>24)throw new BadRequestException('Cantidad de evidencias inválida.');
   for(const evidence of body.evidence){
    if(!evidence || typeof evidence.url!=='string' || typeof evidence.sourceType!=='string'
     ||typeof evidence.result!=='string'||evidence.result.length>40000
