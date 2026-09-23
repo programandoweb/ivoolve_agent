@@ -4,6 +4,7 @@ import { Activity, History, MessageSquareText } from "lucide-react";
 
 import { AgentChat } from "@/components/agent-chat";
 import { ArgosBrowserPairing } from "@/components/argos-browser-pairing";
+import { ArgosTemplateLibrary } from "@/components/argos-template-library";
 import { ArgosSicOutbox } from "@/components/argos-sic-outbox";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { authenticatedBackendFetch } from "@/lib/backend";
@@ -150,9 +151,18 @@ export default async function AgentDetailPage({
       {id === "argos-prospector" && tab === "connect" ? <ArgosBrowserPairing /> : null}
 
       {tab === "chat" ? (
-        <div className="h-[560px] min-h-0 xl:h-[600px]">
-          <AgentChat agentId={agent.id} contained />
-        </div>
+        id === "argos-prospector" ? (
+          <div className="grid min-h-0 gap-4 lg:grid-cols-[310px_minmax(0,1fr)]">
+            <ArgosTemplateLibrary />
+            <div className="h-[560px] min-h-0 lg:h-[670px]">
+              <AgentChat agentId={agent.id} contained />
+            </div>
+          </div>
+        ) : (
+          <div className="h-[560px] min-h-0 xl:h-[600px]">
+            <AgentChat agentId={agent.id} contained />
+          </div>
+        )
       ) : null}
 
       {tab === "activity" ? (
