@@ -10,6 +10,7 @@ import { ArgosBrowserService } from '../browser/argos-browser.service';
 import { ProvidersService } from '../providers/providers.service';
 import { GoogleProspectingService } from './google-prospecting.service';
 import { VideoGeneratorService } from './video-generator.service';
+import { ArgosSicOutboxService } from './argos-sic-outbox.service';
 import { SicClientService } from './sic-client.service';
 import {
   RuntimeToolDefinition,
@@ -26,6 +27,7 @@ export class ToolRegistryService {
     private readonly videoGenerator: VideoGeneratorService,
     private readonly sic: SicClientService,
     private readonly argosBrowser: ArgosBrowserService,
+    private readonly argosOutbox: ArgosSicOutboxService,
   ) {}
 
   definitions(): RuntimeToolDefinition[] {
@@ -48,7 +50,7 @@ export class ToolRegistryService {
       },
       {
         name: 'prospecting.browser_maps_search',
-        description: 'Solicita a la extensión Argos Chrome conectada que navegue Google Maps, espere 5 segundos entre scrolls y recopile resultados públicos, sin Google API. Los resultados de campañas SIC se guardan automáticamente. Solo Argos puede usarla.',
+        description: 'Solicita a Argos Chrome que recopile fichas públicas de Google Maps, guarde primero TODA la recolección en un outbox duradero en MariaDB y sincronice con SIC. Ante fallo HTTP quedan pendientes para reintento automático/manual; informar persistence.syncedCount, pendingCount y failedCount, nunca declarar pendientes como guardados. Solo Argos.',
         arguments: {
           query: 'Actividad y ciudad, por ejemplo: empresas automotrices en Pereira',
           maxResults: 'Objetivo de 1 a 100 empresas por consulta; Maps puede mostrar menos',
@@ -257,39 +259,20 @@ export class ToolRegistryService {
           country: 'CO', capturedAt: item.capturedAt,
         }));
 
-        let persistence: Record<string, unknown> | undefined;
-        if (context.executionId && context.campaignId) {
-          // SIC creó la ejecución: preservar la relación entre campaña y cada ficha.
-          const saved: unknown[] = [];
-          for (const prospect of browserProspects) {
-            saved.push(await this.sic.upsertProspect(context.executionId, prospect));
-          }
-          persistence = {
-            mode: 'automatic',
-            executionId: context.executionId,
-            savedCount: saved.length,
-            prospects: saved,
-          };
-        } else if (context.source === 'interactive' && context.actorId && browserProspects.length) {
-          // Si Argos se ejecuta desde su chat, guardar inmediatamente los
-          // resultados observados usando el contrato interno sin campaña.
-          const saved: Array<{ id: string; name?: string }> = [];
-          for (let offset = 0; offset < browserProspects.length; offset += 50) {
-            const chunk = browserProspects.slice(offset, offset + 50);
-            const imported = await this.sic.importArgosProspects(chunk);
-            saved.push(...imported.prospects);
-          }
-          persistence = {
-            mode: 'automatic_chat',
-            savedCount: saved.length,
-            prospects: saved,
-          };
-        }
+        // Durable boundary: persist the ENTIRE browser result set before ANY
+        // HTTP request to SIC. A 500/network timeout cannot lose the search.
+        const persistence = await this.argosOutbox.enqueue({
+          prospects: browserProspects,
+          query,
+          tenantId: context.tenantId,
+          executionId: context.executionId && context.campaignId ? context.executionId : undefined,
+          campaignId: context.campaignId,
+        });
 
         return {
           source: 'google_maps_browser', query,
           resultCount: results.length, requested: maxResults, results,
-          ...(persistence ? { persistence } : {}),
+          persistence,
           warning: results.length < maxResults
             ? 'Google Maps devolvió menos resultados que el objetivo; cambia la consulta o el área.'
             : undefined,
