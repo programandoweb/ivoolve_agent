@@ -1,0 +1,59 @@
+name: Verify Hermes Integration
+on:
+  push:
+    paths:
+      - 'backend/apps/orchestrator/src/hermes/**'
+      - 'backend/apps/orchestrator/src/tools/tool-registry.service.ts'
+      - 'backend/apps/orchestrator/src/tools/tools.module.ts'
+      - 'backend/apps/orchestrator/src/database/database.service.ts'
+      - 'frontend/src/components/hermes-**'
+      - 'frontend/src/components/agent-chat.tsx'
+      - 'frontend/src/app/dashboard/agents/**'
+      - 'frontend/src/app/api/hermes-**'
+      - '.github/workflows/verify-hermes-integration.yml'
+  pull_request:
+    paths:
+      - 'backend/apps/orchestrator/src/hermes/**'
+      - 'backend/apps/orchestrator/src/tools/tool-registry.service.ts'
+      - 'backend/apps/orchestrator/src/tools/tools.module.ts'
+      - 'backend/apps/orchestrator/src/database/database.service.ts'
+      - 'frontend/src/components/hermes-**'
+      - 'frontend/src/components/agent-chat.tsx'
+      - 'frontend/src/app/dashboard/agents/**'
+      - 'frontend/src/app/api/hermes-**'
+      - '.github/workflows/verify-hermes-integration.yml'
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Test deterministic official-source planning
+        run: npm test -- --runInBand apps/orchestrator/src/hermes/hermes-source-plan.spec.ts
+      - name: Typecheck and compile NestJS
+        run: npm run build
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Verify Next.js TypeScript
+        run: npx tsc --noEmit
