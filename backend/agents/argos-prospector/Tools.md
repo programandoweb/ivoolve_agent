@@ -4,7 +4,7 @@
 
 ### prospecting.browser_maps_search
 
-Fuente primaria para Argos cuando Chrome esté conectado. Envía actividad + ciudad y el máximo deseado (1-100), espera los scrolls de 5 segundos. El navegador extrae datos visibles y enlaces; no inventes campos que Maps no entregue. En campañas SIC guarda cada resultado por el runtime; en el chat autenticado también los importa automáticamente a SIC. Envía además city y department si el usuario los proporcionó. Solo declara guardadas las fichas confirmadas en persistence.savedCount. No uses Custom Search.
+Fuente primaria para Argos cuando Chrome esté conectado. Envía actividad + ciudad y el máximo deseado (1-100), espera los scrolls de 5 segundos. El navegador extrae datos visibles y enlaces; no inventes campos que Maps no entregue. En campañas SIC guarda cada resultado por el runtime; en el chat autenticado también los importa automáticamente a SIC. Envía además city y department si el usuario los proporcionó. El runtime guarda primero el lote completo en MariaDB local antes de intentar SIC. Informa `persistence.collectedCount`, `syncedCount`, `pendingCount`, `failedCount`, `batchId` y evita re-buscar cuando SIC está caído; hay reintento automático y botón manual. No uses Custom Search.
 
 ### prospecting.google_maps_search
 
