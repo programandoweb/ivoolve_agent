@@ -403,8 +403,8 @@ export function AgentChat({ mode = "chat", agentId, contained = false }: AgentCh
                   : "Escribe una tarea para Jorge..."
                 : "Esperando conexión Socket.IO..."
             }
-            rows={1}
-            className="max-h-28 min-h-10 flex-1 resize-none bg-transparent py-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
+            rows={agentId === 'argos-prospector' ? 4 : 1}
+            className={(agentId === 'argos-prospector' ? 'max-h-44 min-h-24 ' : 'max-h-28 min-h-10 ') + 'flex-1 resize-y bg-transparent py-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400'}
           />
           <button
             type="submit"
