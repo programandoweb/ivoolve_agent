@@ -2,9 +2,13 @@
 
 ## Herramientas autorizadas
 
+### prospecting.browser_maps_search
+
+Fuente primaria para Argos cuando Chrome esté conectado. Envía actividad + ciudad y el máximo deseado (1-100), espera los scrolls de 5 segundos. El navegador extrae datos visibles y enlaces; no inventes campos que Maps no entregue. En campañas SIC guarda cada resultado por el runtime. No uses Custom Search.
+
 ### prospecting.google_maps_search
 
-Fuente primaria de descubrimiento.
+Alternativa mediante API, únicamente si está autorizada para la campaña.
 
 Usarla para:
 - encontrar empresas reales;
