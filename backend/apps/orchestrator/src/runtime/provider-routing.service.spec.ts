@@ -3,7 +3,7 @@ import { AgentRuntimeService } from '../agents/agent-runtime.service';
 import { LlmService } from '../llm/llm.service';
 import { ProvidersService } from '../providers/providers.service';
 import { RedisService } from '../state/redis.service';
-import { ExecutionLogStore } from './execution-log.store';
+import { ExecutionTraceService } from '../database/execution-trace.service';
 import { ProviderRoutingService } from './provider-routing.service';
 
 describe('ProviderRoutingService', () => {
@@ -24,8 +24,10 @@ describe('ProviderRoutingService', () => {
     claim: jest.fn(),
     delete: jest.fn(),
   };
-  const executions = {
-    append: jest.fn(),
+  const traces = {
+    start: jest.fn(),
+    event: jest.fn(),
+    finish: jest.fn(),
   };
 
   let service: ProviderRoutingService;
@@ -50,7 +52,7 @@ describe('ProviderRoutingService', () => {
       runtime as unknown as AgentRuntimeService,
       llm as unknown as LlmService,
       redis as unknown as RedisService,
-      executions as unknown as ExecutionLogStore,
+      traces as unknown as ExecutionTraceService,
     );
   });
 
@@ -83,10 +85,11 @@ describe('ProviderRoutingService', () => {
       'tenant:tenant-a:provider:provider-1:contact:573001112233@s.whatsapp.net',
       message.text,
       'sales',
-      {
+      expect.objectContaining({
         source: 'provider',
         tenantId: 'tenant-a',
-      },
+        executionId: expect.any(String),
+      }),
     );
     expect(providers.sendText).toHaveBeenCalledWith(
       'provider-1',
@@ -95,12 +98,11 @@ describe('ProviderRoutingService', () => {
       'El precio es...',
       'tenant-a',
     );
-    expect(executions.append).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tenantId: 'tenant-a',
-        status: 'completed',
-        agentId: 'sales',
-      }),
+    expect(traces.start).toHaveBeenCalledWith(expect.objectContaining({
+      tenantId: 'tenant-a', agentId: 'sales',
+    }));
+    expect(traces.finish).toHaveBeenCalledWith(
+      expect.any(String), 'completed', expect.objectContaining({ tenantId: 'tenant-a' }),
     );
     expect(redis.delete).not.toHaveBeenCalled();
     expect(llm.complete).not.toHaveBeenCalled();
@@ -127,8 +129,6 @@ describe('ProviderRoutingService', () => {
     expect(redis.delete).toHaveBeenCalledWith(
       'ivoolve:provider-message:provider-1:msg-1',
     );
-    expect(executions.append).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'failed' }),
-    );
+    expect(traces.finish).not.toHaveBeenCalled(); // El error ocurre antes de start().
   });
 });
