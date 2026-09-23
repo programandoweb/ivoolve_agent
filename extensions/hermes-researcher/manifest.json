@@ -14,7 +14,18 @@
     "https://www.google.com/*",
     "https://www.google.com.co/*",
     "https://*.programandoweb.net/*",
-    "http://localhost:5020/*"
+    "http://localhost:5020/*",
+    "https://www.dian.gov.co/*",
+    "https://*.dian.gov.co/*",
+    "https://www.colombiacompra.gov.co/*",
+    "https://*.colombiacompra.gov.co/*",
+    "https://www.rues.org.co/*",
+    "https://*.rues.org.co/*",
+    "https://www.camarapereira.org.co/*",
+    "https://*.camarapereira.org.co/*",
+    "https://www.instagram.com/*",
+    "https://www.facebook.com/*",
+    "https://www.linkedin.com/*"
   ],
   "background": {
     "service_worker": "dist/background.js",
@@ -27,7 +38,18 @@
     {
       "matches": [
         "https://www.google.com/*",
-        "https://www.google.com.co/*"
+        "https://www.google.com.co/*",
+        "https://www.dian.gov.co/*",
+        "https://*.dian.gov.co/*",
+        "https://www.colombiacompra.gov.co/*",
+        "https://*.colombiacompra.gov.co/*",
+        "https://www.rues.org.co/*",
+        "https://*.rues.org.co/*",
+        "https://www.camarapereira.org.co/*",
+        "https://*.camarapereira.org.co/*",
+        "https://www.instagram.com/*",
+        "https://www.facebook.com/*",
+        "https://www.linkedin.com/*"
       ],
       "js": [
         "dist/observe.js"
