@@ -34,6 +34,9 @@ jobs:
           test -s dist/background.js
           test -s dist/maps.js
           test -s dist/popup.js
+          test -s dist/sidepanel.js
+          test -s sidepanel.html
+          test -s sidepanel.css
           test -s dist/icon-16.png
           test -s dist/icon-32.png
           test -s dist/icon-48.png
