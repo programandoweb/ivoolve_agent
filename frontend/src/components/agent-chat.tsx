@@ -207,7 +207,7 @@ export function AgentChat({ mode = "chat", agentId, contained = false }: AgentCh
   // Argos template library prepares a DRAFT only. The user can edit it and
   // must manually press Enter or click Send; selecting never executes a task.
   useEffect(() => {
-    if (agentId !== 'argos-prospector' || mode !== 'chat') return;
+    if (!['argos-prospector', 'hermes-researcher'].includes(agentId || '') || mode !== 'chat') return;
     const receiveDraft = (event: Event) => {
       const value = (event as CustomEvent<{ text?: string }>).detail?.text;
       if (typeof value !== 'string' || !value.trim()) return;
@@ -219,8 +219,9 @@ export function AgentChat({ mode = "chat", agentId, contained = false }: AgentCh
         textarea?.setSelectionRange(0, 0);
       });
     };
-    window.addEventListener('argos:template:draft', receiveDraft);
-    return () => window.removeEventListener('argos:template:draft', receiveDraft);
+    const eventName = agentId === 'hermes-researcher' ? 'hermes:template:draft' : 'argos:template:draft';
+    window.addEventListener(eventName, receiveDraft);
+    return () => window.removeEventListener(eventName, receiveDraft);
   }, [agentId, mode, sending]);
 
   const agentLabel = useMemo(
@@ -403,8 +404,8 @@ export function AgentChat({ mode = "chat", agentId, contained = false }: AgentCh
                   : "Escribe una tarea para Jorge..."
                 : "Esperando conexión Socket.IO..."
             }
-            rows={agentId === 'argos-prospector' ? 4 : 1}
-            className={(agentId === 'argos-prospector' ? 'max-h-44 min-h-24 ' : 'max-h-28 min-h-10 ') + 'flex-1 resize-y bg-transparent py-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400'}
+            rows={agentId === 'argos-prospector' || agentId === 'hermes-researcher' ? 4 : 1}
+            className={(agentId === 'argos-prospector' || agentId === 'hermes-researcher' ? 'max-h-44 min-h-24 ' : 'max-h-28 min-h-10 ') + 'flex-1 resize-y bg-transparent py-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400'}
           />
           <button
             type="submit"
