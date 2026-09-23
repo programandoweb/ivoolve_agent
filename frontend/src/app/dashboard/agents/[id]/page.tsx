@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Activity, History, MessageSquareText } from "lucide-react";
 
 import { AgentChat } from "@/components/agent-chat";
+import { ArgosBrowserPairing } from "@/components/argos-browser-pairing";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { authenticatedBackendFetch } from "@/lib/backend";
 
@@ -38,7 +39,7 @@ type ExecutionDetail = {
   events: RuntimeEvent[];
 };
 
-type TabId = "chat" | "activity" | "history";
+type TabId = "chat" | "activity" | "history" | "connect";
 
 export default async function AgentDetailPage({
   params,
@@ -50,7 +51,7 @@ export default async function AgentDetailPage({
   const { id } = await params;
   const { tab: requestedTab } = await searchParams;
   const tab: TabId =
-    requestedTab === "activity" || requestedTab === "history"
+    requestedTab === "activity" || requestedTab === "history" || (id === "argos-prospector" && requestedTab === "connect")
       ? requestedTab
       : "chat";
 
@@ -138,12 +139,17 @@ export default async function AgentDetailPage({
         </TabLink>
       </nav>
 
+      {id === "argos-prospector" && tab === "connect" ? <ArgosBrowserPairing /> : null}
+
       {tab === "chat" ? (
         <div className="h-[560px] min-h-0 xl:h-[600px]">
           <AgentChat agentId={agent.id} contained />
         </div>
       ) : null}
 
+      {id === "argos-prospector" ? (
+        <TabLink href="/dashboard/agents/argos-prospector?tab=connect" active={tab === "connect"} icon={<Activity className="h-4 w-4" />}>Conectar Chrome</TabLink>
+      ) : null}
       {tab === "activity" ? (
         <LiveActivity
           agentId={agent.id}
