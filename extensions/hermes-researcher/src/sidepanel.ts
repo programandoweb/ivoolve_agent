@@ -10,7 +10,12 @@ function paint(s:State){
  el('count').textContent=String(s.count||0);
  const input=el('server') as HTMLInputElement;
  if(document.activeElement!==input)input.value=s.serverUrl||'';
- el('sources').replaceChildren(...(s.sources||[]).map(url=>{const li=document.createElement('li');li.textContent=url;return li;}));
+ el('sources').replaceChildren(...(s.sources||[]).map(url=>{
+  const li=document.createElement('li');
+  const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';
+  link.textContent=url;link.title='Abrir evidencia observada en su fuente';
+  li.append(link);return li;
+ }));
 }
 function request(type:string){return new Promise<State>(resolve=>chrome.runtime.sendMessage({type},(s:State)=>resolve(chrome.runtime.lastError?{error:chrome.runtime.lastError.message}:s||{})));}
 void request('HERMES_STATE').then(paint);
