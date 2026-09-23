@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import type { Socket } from 'socket.io';
 
 type Pending = { code: string; socket: Socket; expiresAt: number; ip: string };
-type Authorized = { hash: string; approvedAt: string; deviceName: string };
+type Authorized = { hash: string; approvedAt: string; deviceName: string; tenantId: string };
 @Injectable()
 export class HermesPairingService {
   private readonly pending = new Map<string, Pending>();
@@ -32,15 +32,19 @@ export class HermesPairingService {
     await rename(temp, this.file);
   }
 
-  async valid(token: unknown): Promise<boolean> {
-    if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return false;
+  async resolveTenant(token: unknown): Promise<string | null> {
+    if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return null;
     const candidate = Buffer.from(createHash('sha256').update(token).digest('hex'), 'hex');
     for (const record of await this.stored()) {
       if (!/^[a-f0-9]{64}$/.test(record.hash)) continue;
       const stored = Buffer.from(record.hash, 'hex');
-      if (timingSafeEqual(candidate, stored)) return true;
+      if (timingSafeEqual(candidate, stored)) return record.tenantId || null;
     }
-    return false;
+    return null;
+  }
+  
+  async valid(token: unknown): Promise<boolean> {
+    return Boolean(await this.resolveTenant(token));
   }
 
   start(socket: Socket): { code: string; expiresAt: string } {
@@ -65,11 +69,11 @@ export class HermesPairingService {
     return [...this.pending.values()].map(p => ({ code: p.code, expiresAt: new Date(p.expiresAt).toISOString() }));
   }
 
-  async devices(): Promise<Array<{ id: string; approvedAt: string; deviceName: string }>> {
-    return (await this.stored()).map(row => ({ id: row.hash.slice(0, 12), approvedAt: row.approvedAt, deviceName: row.deviceName }));
+  async devices(tenantId: string): Promise<Array<{ id: string; approvedAt: string; deviceName: string }>> {
+    return (await this.stored()).filter(row => row.tenantId === tenantId).map(row => ({ id: row.hash.slice(0, 12), approvedAt: row.approvedAt, deviceName: row.deviceName }));
   }
 
-  approve(code: string): Promise<{ approved: boolean }> {
+  approve(code: string, tenantId: string): Promise<{ approved: boolean }> {
     const task = async () => {
       const pending = this.pending.get(code);
       if (!pending || pending.expiresAt < Date.now() || !pending.socket.connected) throw new NotFoundException('Código vencido. Abre Hermes para solicitar uno nuevo.');
@@ -79,7 +83,7 @@ export class HermesPairingService {
       const hash = createHash('sha256').update(token).digest('hex');
       try {
         const records = await this.stored();
-        records.push({ hash, approvedAt: new Date().toISOString(), deviceName: 'Chrome Hermes' });
+        records.push({ hash, approvedAt: new Date().toISOString(), deviceName: 'Chrome Hermes', tenantId });
         await this.save(records);
       } catch (error) {
         this.pending.set(code, pending);
@@ -94,10 +98,10 @@ export class HermesPairingService {
     return result;
   }
 
-  revoke(id: string): Promise<{ revoked: boolean }> {
+  revoke(id: string, tenantId: string): Promise<{ revoked: boolean }> {
     const task = async () => {
       const records = await this.stored();
-      const remaining = records.filter(r => r.hash.slice(0, 12) !== id);
+      const remaining = records.filter(r => !(r.tenantId === tenantId && r.hash.slice(0, 12) === id));
       if (remaining.length === records.length) throw new NotFoundException('Dispositivo desconocido.');
       await this.save(remaining);
       return { revoked: true };
