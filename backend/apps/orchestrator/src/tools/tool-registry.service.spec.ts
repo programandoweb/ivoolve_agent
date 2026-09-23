@@ -5,6 +5,7 @@ import { GoogleProspectingService } from './google-prospecting.service';
 import { ToolRegistryService } from './tool-registry.service';
 import { VideoGeneratorService } from './video-generator.service';
 import { SicClientService } from './sic-client.service';
+import { ArgosSicOutboxService } from './argos-sic-outbox.service';
 
 describe('ToolRegistryService', () => {
   const providers = {
@@ -26,6 +27,7 @@ describe('ToolRegistryService', () => {
     status: jest.fn(),
   };
   const argosBrowser = { search: jest.fn() };
+  const argosOutbox = { enqueue: jest.fn() };
   const sic = {
     upsertProspect: jest.fn(),
     importArgosProspects: jest.fn(),
@@ -36,6 +38,7 @@ describe('ToolRegistryService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     approvals.requiresApproval.mockReturnValue(false);
+    argosOutbox.enqueue.mockResolvedValue({ batchId: 'batch-1', collectedCount: 1, syncedCount: 1, pendingCount: 0, failedCount: 0, status: 'synced' });
 
     service = new ToolRegistryService(
       providers as unknown as ProvidersService,
@@ -44,6 +47,7 @@ describe('ToolRegistryService', () => {
       videoGenerator as unknown as VideoGeneratorService,
       sic as unknown as SicClientService,
       argosBrowser as unknown as ArgosBrowserService,
+      argosOutbox as unknown as ArgosSicOutboxService,
     );
   });
 
@@ -261,56 +265,54 @@ describe('ToolRegistryService', () => {
 
     expect(videoGenerator.generate).not.toHaveBeenCalled();
   });
-  it('pide a Chrome datos visibles y los persiste en la ejecución real de SIC', async () => {
+  it('persiste fichas de Chrome antes de sincronizar SIC en la campaña real', async () => {
     argosBrowser.search.mockResolvedValue([{
       name: 'Taller Uno', mapsUrl: 'https://www.google.com/maps/place/Taller+Uno',
       address: 'Pereira, Risaralda', phone: '+573001112233',
       sourceType: 'google_maps_browser', capturedAt: '2026-09-23T00:00:00.000Z',
     }]);
-    sic.upsertProspect.mockResolvedValue({ id: 'saved' });
-
     const result = await service.execute({
       tool: 'prospecting.browser_maps_search',
-      arguments: { query: 'empresas automotrices en Pereira', maxResults: 100 },
+      arguments: { query: 'automotrices en Pereira', maxResults: 100 },
     }, {
       agentId: 'argos-prospector', source: 'integration',
       executionId: 'run-actual', campaignId: 'campaign-1',
       campaignContext: { city: 'Pereira', department: 'Risaralda' },
     }) as Record<string, unknown>;
 
-    expect(argosBrowser.search).toHaveBeenCalledWith('empresas automotrices en Pereira', 100);
-    expect(sic.upsertProspect).toHaveBeenCalledWith('run-actual', expect.objectContaining({
-      name: 'Taller Uno', city: 'Pereira', department: 'Risaralda',
-      sourceType: 'google_maps',
+    expect(argosBrowser.search).toHaveBeenCalledWith('automotrices en Pereira', 100);
+    expect(argosOutbox.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+      query: 'automotrices en Pereira', executionId: 'run-actual',
+      campaignId: 'campaign-1',
+      prospects: [expect.objectContaining({
+        name: 'Taller Uno', city: 'Pereira', sourceType: 'google_maps',
+      })],
     }));
-    expect(result.persistence).toEqual(expect.objectContaining({ savedCount: 1 }));
+    expect(sic.upsertProspect).not.toHaveBeenCalled(); // outbox owns the send/ACK
+    expect(result.persistence).toEqual(expect.objectContaining({ syncedCount: 1 }));
   });
 
-  it('guarda automáticamente desde el chat de Argos sin inventar un campaign run', async () => {
+  it('no pierde los datos Chrome cuando SIC no responde desde el chat', async () => {
     argosBrowser.search.mockResolvedValue([{
-      name: 'Taller Real', mapsUrl: 'https://www.google.com/maps/place/Taller+Real',
-      phone: '+573001112233', sourceType: 'google_maps_browser',
-      capturedAt: '2026-09-23T00:00:00.000Z',
+      name: 'Fábrica Textil', mapsUrl: 'https://www.google.com/maps/place/Fabrica+Textil',
+      sourceType: 'google_maps_browser', capturedAt: '2026-09-23T00:00:00.000Z',
     }]);
-    sic.importArgosProspects.mockResolvedValue({
-      savedCount: 1,
-      prospects: [{ id: 'sic-prospect-123', name: 'Taller Real' }],
+    argosOutbox.enqueue.mockResolvedValueOnce({
+      batchId: 'persisted-1', collectedCount: 1, syncedCount: 0,
+      pendingCount: 0, failedCount: 1, status: 'pending_sync',
     });
-
     const result = await service.execute({
       tool: 'prospecting.browser_maps_search',
-      arguments: {
-        query: 'automotrices en Pereira', maxResults: 10, city: 'Pereira', department: 'Risaralda',
-      },
-    }, { agentId: 'argos-prospector', source: 'interactive', actorId: 'jorge' }) as Record<string, any>;
+      arguments: { query: 'confección Pereira', city: 'Pereira', maxResults: 10 },
+    }, {
+      agentId: 'argos-prospector', source: 'interactive', actorId: 'jorge',
+    }) as { persistence: { failedCount: number; syncedCount: number } };
 
-    expect(sic.importArgosProspects).toHaveBeenCalledWith([expect.objectContaining({
-      name: 'Taller Real', sourceType: 'google_maps', city: 'Pereira', department: 'Risaralda',
-    })]);
-    expect(sic.upsertProspect).not.toHaveBeenCalled();
-    expect(result.persistence).toEqual(expect.objectContaining({
-      mode: 'automatic_chat', savedCount: 1,
+    expect(argosOutbox.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+      prospects: [expect.objectContaining({ name: 'Fábrica Textil', city: 'Pereira' })],
     }));
+    expect(result.persistence.failedCount).toBe(1);
+    expect(result.persistence.syncedCount).toBe(0);
   });
 
   it('no permite a otros agentes controlar la extensión Argos', async () => {
