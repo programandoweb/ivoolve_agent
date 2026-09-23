@@ -40,7 +40,7 @@ export class HermesEvidenceOutboxService implements OnModuleInit, OnModuleDestro
    const allowed=(evidence.sourceType==='google_search_browser'||evidence.sourceType==='google_images_browser')
      ? search && parsed.pathname==='/search'
      : evidence.sourceType==='colombia_government_browser'
-       ? domainAllowed('dian.gov.co')||domainAllowed('colombiacompra.gov.co')
+       ? domainAllowed('gov.co')
        : evidence.sourceType==='commerce_registry_browser'
          ? domainAllowed('rues.org.co')||domainAllowed('camarapereira.org.co')
          : evidence.sourceType==='public_social_profile_browser'
