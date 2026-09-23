@@ -95,7 +95,7 @@ export class ToolRegistryService {
       {
         name: 'research.browser_verify',
         description: 'Solo Hermes con researchId y prospectId auténticos de SIC. Solicita a Chrome consultas públicas de Google Search. Antes de confirmar se preservan las evidencias en MariaDB de Agent; la sincronización SIC ocurre mediante outbox y puede quedar pendiente.',
-        arguments: { prospectName: 'Nombre del prospecto presente en el contexto SIC', city: 'Ciudad solo si SIC la conoce', activity: 'Actividad conocida por SIC, cuando exista', sourceMode: 'auto por defecto; custom solo por petición explícita del operador', queries: 'Solo con sourceMode custom: máximo 8 consultas elegidas por el usuario' },
+        arguments: { prospectName: 'Nombre del prospecto presente en el contexto SIC', city: 'Ciudad solo si SIC la conoce', activity: 'Actividad conocida por SIC, cuando exista', sourceMode: 'auto por defecto; custom solo por petición explícita del operador', queries: 'Solo con sourceMode custom: máximo 12 consultas elegidas por el usuario' },
       },
       {
         name: 'sic.research.complete',
