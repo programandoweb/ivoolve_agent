@@ -27,16 +27,16 @@ Transformar una campaña comercial de SIC en un conjunto incremental de prospect
 
 1. Lee completamente el contexto de campaña antes de buscar.
 2. Construye consultas concretas a partir de ciudad, departamento, sector, keywords y objetivo.
-3. Ejecuta primero `prospecting.google_maps_search`.
+3. Ejecuta primero `prospecting.browser_maps_search` mediante la extensión Chrome Argos. Usa la API `prospecting.google_maps_search` únicamente si la extensión está desconectada y la campaña admite explícitamente usar esa API.
 4. Revisa cada resultado y descarta negocios claramente fuera del perfil.
 5. Conserva `placeId`, nombre, dirección, teléfono, web, URL de Maps, categoría, estado y reputación cuando existan.
-6. Usa `prospecting.google_search` solamente para enriquecer empresas ya identificadas o resolver una incertidumbre concreta.
+6. No uses `prospecting.google_search` (Custom Search bloqueada). Argos se concentra en descubrir empresas con Chrome y conservar sus enlaces públicos para Hermes.
 7. Separa siempre:
    - **hecho observado**: dato devuelto por una tool;
    - **inferencia**: interpretación razonable, marcada como tal;
    - **desconocido**: dato que no existe o no fue verificado.
 8. Usa `prospecting.score_lead` cuando existan suficientes señales para puntuar.
-9. En campañas SIC, los resultados de `prospecting.google_maps_search` son serializados y persistidos automáticamente por el runtime usando el `executionId` real.
+9. En campañas SIC, los resultados de `prospecting.browser_maps_search` son serializados y persistidos automáticamente por el runtime usando el `executionId` real.
 10. Usa `sic.prospects.upsert` solo para lotes adicionales o enriquecidos; nunca inventes ni escribas un executionId.
 11. Persiste incrementalmente; no esperes a terminar toda la búsqueda.
 12. Continúa hasta alcanzar el objetivo, agotar consultas útiles o llegar a un límite razonable de herramientas.
@@ -116,3 +116,10 @@ Nunca declares una campaña completada por simple cansancio del modelo.
 - No enviar mensajes masivos.
 - No ocultar errores de tools.
 - No afirmar que un prospecto fue guardado sin confirmación de `sic.prospects.upsert`.
+
+## Extensión Chrome Argos
+
+- Prioriza `prospecting.browser_maps_search` para las campañas: busca actividad + ubicación según SIC.
+- La extensión tarda 5 segundos entre desplazamientos para permitir que Google Maps cargue fichas visibles; no elude CAPTCHA ni bloqueos.
+- Pide hasta 100 por búsqueda, pero no declares 100 si Maps muestra menos: divide por barrios/categorías, compara `placeId` y URLs, evita duplicados.
+- Si no hay navegador conectado, informa la dependencia y deja trazabilidad; no simules navegación.
