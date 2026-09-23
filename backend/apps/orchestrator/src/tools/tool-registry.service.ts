@@ -241,31 +241,55 @@ export class ToolRegistryService {
         const query = this.requiredString(call, 'query');
         const maxResults = this.optionalNumber(call, 'maxResults', 20);
         const results = await this.argosBrowser.search(query, maxResults);
-        let savedCount = 0;
+        const browserProspects = results.map(item => ({
+          name: item.name, address: item.address, phone: item.phone,
+          website: item.website, mapsUrl: item.mapsUrl, placeId: item.placeId,
+          sourceExternalId: item.placeId ?? item.mapsUrl,
+          sourceUrl: item.mapsUrl, sourceType: 'google_maps',
+          category: item.category, rating: item.rating,
+          userRatingCount: item.userRatingCount,
+          searchQuery: query,
+          city: this.cityFromCampaign(context.campaignContext),
+          department: this.departmentFromCampaign(context.campaignContext),
+          country: 'CO', capturedAt: item.capturedAt,
+        }));
+
+        let persistence: Record<string, unknown> | undefined;
         if (context.executionId && context.campaignId) {
-          for (const item of results) {
-            const persisted = {
-              name: item.name, address: item.address, phone: item.phone,
-              website: item.website, mapsUrl: item.mapsUrl, placeId: item.placeId,
-              sourceExternalId: item.placeId ?? item.mapsUrl,
-              sourceUrl: item.mapsUrl, sourceType: 'google_maps',
-              category: item.category, rating: item.rating,
-              userRatingCount: item.userRatingCount,
-              searchQuery: query, city: this.cityFromCampaign(context.campaignContext),
-              department: this.departmentFromCampaign(context.campaignContext),
-              country: 'CO', capturedAt: item.capturedAt,
-            };
-            await this.sic.upsertProspect(context.executionId, persisted);
-            savedCount += 1;
+          // SIC creó la ejecución: preservar la relación entre campaña y cada ficha.
+          const saved: unknown[] = [];
+          for (const prospect of browserProspects) {
+            saved.push(await this.sic.upsertProspect(context.executionId, prospect));
           }
+          persistence = {
+            mode: 'automatic_campaign',
+            executionId: context.executionId,
+            savedCount: saved.length,
+            prospects: saved,
+          };
+        } else if (context.source === 'interactive' && context.actorId && browserProspects.length) {
+          // Si Argos se ejecuta desde su chat, guardar inmediatamente los
+          // resultados observados usando el contrato interno sin campaña.
+          const saved: Array<{ id: string; name?: string }> = [];
+          for (let offset = 0; offset < browserProspects.length; offset += 50) {
+            const chunk = browserProspects.slice(offset, offset + 50);
+            const imported = await this.sic.importArgosProspects(chunk);
+            saved.push(...imported.prospects);
+          }
+          persistence = {
+            mode: 'automatic_chat',
+            savedCount: saved.length,
+            prospects: saved,
+          };
         }
+
         return {
           source: 'google_maps_browser', query,
           resultCount: results.length, requested: maxResults, results,
-          ...(context.executionId && context.campaignId ? { persistence: {
-            mode: 'automatic', savedCount, executionId: context.executionId,
-          } } : {}),
-          warning: results.length < maxResults ? 'Google Maps devolvió menos resultados que el objetivo; cambia la consulta o el área.' : undefined,
+          ...(persistence ? { persistence } : {}),
+          warning: results.length < maxResults
+            ? 'Google Maps devolvió menos resultados que el objetivo; cambia la consulta o el área.'
+            : undefined,
         };
       }
 
