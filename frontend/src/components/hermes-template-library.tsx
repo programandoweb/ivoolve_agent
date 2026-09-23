@@ -1,16 +1,16 @@
 'use client';
 import {useState} from 'react';
 const templates=[
- ['Investigación integral','Investiga el prospecto existente indicado por SIC. Usa research.browser_verify con consultas específicas de nombre, ciudad y actividad. Registra fuentes y distingue hechos, inferencias y desconocidos.'],
- ['Identidad comercial','Corrobora el nombre, dirección, dominio y actividad del prospecto SIC en Google Search público. No confundas empresas homónimas.'],
+ ['Investigación integral','Investiga el prospecto real de SIC usando research.browser_verify (prospectName, city y activity del contexto SIC). Prioriza fuentes .gov.co, RUES y cámara de comercio; continúa con web oficial, perfiles sociales y Google Imágenes. Registra procedencia de cada hallazgo.'],
+ ['Identidad comercial y RUES','Corrobora razón social, NIT si está publicado, dirección y actividad del prospecto SIC usando primero registros públicos y cámaras de comercio. No confundas homónimos ni atribuyas registros indexados como verificados.'],
  ['Sitio oficial','Identifica el sitio web oficial y contrasta el dominio con las fuentes públicas. Reporta si no hay evidencia suficiente.'],
  ['Redes públicas','Busca páginas empresariales públicas de Instagram, Facebook y LinkedIn del prospecto. No eludas accesos restringidos.'],
  ['Opiniones','Verifica si existen fichas públicas y reseñas reales; separa patrones frecuentes de testimonios individuales.'],
  ['Ubicación','Contrasta la ubicación y las direcciones públicas del prospecto con la ficha SIC.'],
- ['Portafolio','Identifica líneas de producto y servicios que figuren expresamente en páginas públicas.'],
+ ['Portafolio e imágenes','Investiga los servicios, productos y proyectos visibles de este prospecto y localiza referencias públicas en Google Imágenes, su web y redes. Guarda URL de miniatura, URL observada, destino sugerido y fecha. Distingue imágenes relacionadas de obras propias verificadas; no asumas derechos de reutilización.'],
  ['Señales operativas','Investiga señales públicas de vacantes, sucursales, distribución y crecimiento; no infieras facturación.'],
  ['Presencia institucional','Revisa señales públicas pertinentes de RUES, cámaras de comercio o SECOP sin atribuir coincidencias dudosas.'],
- ['Síntesis','Sintetiza evidencias verificadas, inferencias separadas y vacíos. No finalices sic.research.complete hasta confirmar sincronización SIC.'],
+ ['Propuesta contextualizada','Con las fuentes y referencias visuales verificadas, resume qué ofrece la empresa y su portafolio. Redacta hipótesis comerciales fundamentadas y cita cada URL para preparar una propuesta personalizada. No reutilices imágenes sin permisos. No finalices antes de sincronizar SIC.'],
 ];
 export function HermesTemplateLibrary(){
  const[selected,setSelected]=useState(-1);
