@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ArgosBrowserModule } from '../browser/argos-browser.module';
 
 import { ApprovalsModule } from '../approvals/approvals.module';
 import { ProvidersModule } from '../providers/providers.module';
@@ -8,7 +9,7 @@ import { SicClientService } from './sic-client.service';
 import { VideoGeneratorService } from './video-generator.service';
 
 @Module({
-  imports: [ProvidersModule, ApprovalsModule],
+  imports: [ProvidersModule, ApprovalsModule, ArgosBrowserModule],
   providers: [
     GoogleProspectingService,
     VideoGeneratorService,
