@@ -1,0 +1,8 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Argos Prospecting</title><link rel="stylesheet" href="popup.css"></head><body>
+<main>
+  <header><img src="dist/icon-48.png" width="48" height="48" alt="Argos"><div><span class="eyebrow">IVOOLVE · BROWSER AGENT</span><h1>ARGOS <span>Prospector</span></h1></div></header>
+  <section class="hero"><div class="status"><span class="dot" id="dot"></span><span id="connection">Comprobando conexión…</span></div><h2>Google Maps, explorado por Argos.</h2><p>Tu navegador escucha las tareas del orquestador y recoge fichas empresariales públicas. Un recorrido, una tarea a la vez.</p></section>
+  <div class="stats"><div><span class="num" id="collected">0</span><small>Fichas recientes</small></div><div><span class="num" id="taskState">—</span><small>Actividad</small></div></div>
+  <section class="panel"><label for="server">Socket del orquestador</label><input id="server" spellcheck="false" placeholder="https://socket.orchestrator.programandoweb.net"><p>Sin tokens, IP ni registro de agentes. El servidor debe tener habilitado el modo directo en una red de confianza.</p><button id="save">Guardar y conectar</button><p class="message" id="message" role="status"></p></section>
+  <footer><span>ARGOS · v1.0</span><span>Intervalo de scroll: 5 s</span></footer>
+</main><script type="module" src="dist/popup.js"></script></body></html>
