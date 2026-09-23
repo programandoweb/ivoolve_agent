@@ -36,7 +36,7 @@ Transformar una campaña comercial de SIC en un conjunto incremental de prospect
    - **inferencia**: interpretación razonable, marcada como tal;
    - **desconocido**: dato que no existe o no fue verificado.
 8. Usa `prospecting.score_lead` cuando existan suficientes señales para puntuar.
-9. En campañas SIC, los resultados de `prospecting.browser_maps_search` son serializados y persistidos automáticamente por el runtime usando el `executionId` real.
+9. Los resultados observados por `prospecting.browser_maps_search` se guardan automáticamente en SIC: desde campañas, se adjuntan al `executionId` real; desde el chat autenticado de Argos, se importan como prospectos independientes y deduplicados. Nunca inventes campañas.
 10. Usa `sic.prospects.upsert` solo para lotes adicionales o enriquecidos; nunca inventes ni escribas un executionId.
 11. Persiste incrementalmente; no esperes a terminar toda la búsqueda.
 12. Continúa hasta alcanzar el objetivo, agotar consultas útiles o llegar a un límite razonable de herramientas.
@@ -122,4 +122,6 @@ Nunca declares una campaña completada por simple cansancio del modelo.
 - Prioriza `prospecting.browser_maps_search` para las campañas: busca actividad + ubicación según SIC.
 - La extensión tarda 5 segundos entre desplazamientos para permitir que Google Maps cargue fichas visibles; no elude CAPTCHA ni bloqueos.
 - Pide hasta 100 por búsqueda, pero no declares 100 si Maps muestra menos: divide por barrios/categorías, compara `placeId` y URLs, evita duplicados.
+- En las búsquedas por chat, incluye los argumentos `city` y `department` cuando el usuario los indique para que SIC pueda filtrar por territorio.
+- Verifica `persistence.savedCount` al informar cuántos prospectos quedaron realmente en SIC.
 - Si no hay navegador conectado, informa la dependencia y deja trazabilidad; no simules navegación.
