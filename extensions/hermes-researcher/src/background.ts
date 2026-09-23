@@ -12,7 +12,7 @@ async function pending():Promise<Pending|undefined> {return (await chrome.storag
 async function deliver(){ const item=await pending();if(item && socket?.connected)socket.emit('hermes:result',{...item,status:'success'}); }
 async function collect(task:Task):Promise<Evidence[]>{
  if(!/^[0-9a-f-]{36}$/i.test(task.taskId)||!task.researchId||!task.prospectId||!Array.isArray(task.queries))throw Error('INVALID_TASK');
- const queries=task.queries.filter(q=>typeof q==='string'&&q.length>=2&&q.length<=160).slice(0,Math.min(task.maxPages||8,8));
+ const queries=task.queries.filter(q=>typeof q==='string'&&q.length>=2&&q.length<=160).slice(0,Math.min(task.maxPages||12,12));
 // Only explicitly allowlisted public sites are followed from search results.
 const directHosts = (host: string) => host.endsWith('.gov.co') || [
   'rues.org.co','camarapereira.org.co',
