@@ -88,6 +88,7 @@ function getOrCreateSessionId(
 export function AgentChat({ mode = "chat", agentId, contained = false }: AgentChatProps) {
   const socketRef = useRef<Socket | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const isBuilder = mode === "builder";
   const eventPrefix = isBuilder ? "agent-builder" : "agent";
@@ -202,6 +203,25 @@ export function AgentChat({ mode = "chat", agentId, contained = false }: AgentCh
       socketRef.current = null;
     };
   }, [agentId, eventPrefix, initialMessage, isBuilder, mode]);
+
+  // Argos template library prepares a DRAFT only. The user can edit it and
+  // must manually press Enter or click Send; selecting never executes a task.
+  useEffect(() => {
+    if (agentId !== 'argos-prospector' || mode !== 'chat') return;
+    const receiveDraft = (event: Event) => {
+      const value = (event as CustomEvent<{ text?: string }>).detail?.text;
+      if (typeof value !== 'string' || !value.trim()) return;
+      if (sending) return;
+      setInput(value);
+      requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        textarea?.focus();
+        textarea?.setSelectionRange(0, 0);
+      });
+    };
+    window.addEventListener('argos:template:draft', receiveDraft);
+    return () => window.removeEventListener('argos:template:draft', receiveDraft);
+  }, [agentId, mode, sending]);
 
   const agentLabel = useMemo(
     () => (agents.length > 0 ? agents.join(", ") : fallback),
@@ -372,6 +392,7 @@ export function AgentChat({ mode = "chat", agentId, contained = false }: AgentCh
       >
         <div className="flex items-end gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-1.5 pl-3 focus-within:border-violet-400 focus-within:ring-4 focus-within:ring-violet-100 sm:rounded-3xl sm:p-2 sm:pl-4">
           <textarea
+            ref={textareaRef}
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={handleComposerKeyDown}
