@@ -15,7 +15,7 @@ async function collect(task:Task):Promise<Evidence[]>{
  const queries=task.queries.filter(q=>typeof q==='string'&&q.length>=2&&q.length<=160).slice(0,Math.min(task.maxPages||8,8));
 // Only explicitly allowlisted public sites are followed from search results.
 const directHosts = (host: string) => host.endsWith('.gov.co') || [
-  'rues.org.co','camarapereira.org.co','instagram.com','facebook.com','linkedin.com',
+  'rues.org.co','camarapereira.org.co',
 ].some(domain => host === domain || host.endsWith('.' + domain));
 const toDirect = (links: Array<{url:string}>) => links.map(link => {
   try { return new URL(link.url); } catch { return undefined; }
