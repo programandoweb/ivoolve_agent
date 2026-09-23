@@ -23,7 +23,11 @@ npm run build
 
 En Chrome: `chrome://extensions` → Modo desarrollador → Cargar descomprimida → elige **la carpeta `extensions/argos-prospector`** (no `dist/`). El build genera `dist/icon-16.png`, `dist/icon-32.png`, `dist/icon-48.png`, `dist/icon-128.png`, `dist/background.js`, `dist/maps.js` y `dist/popup.js`.
 
-En el popup Argos hay una única opción: URL del Socket.IO de Orchestrator (por defecto `https://socket.orchestrator.programandoweb.net`; confirma que DNS y tu reverse proxy realmente envíen `/socket.io` al backend NestJS). No hay token, registro de IP, contraseña ni alta manual del trabajador.
+Al pulsar el icono, Argos se abre en el **panel lateral derecho nativo de Chrome** (Side Panel, Chrome 116+), inspirado en el panel deslizante del ejemplo Migo proporcionado. El panel permanece visible al navegar, tiene diseño oscuro violeta, contador, estado y un input editable para la URL del Socket.IO. La URL se guarda en `chrome.storage.local` y el botón **Guardar y conectar** reconecta inmediatamente.
+
+La URL debe resolver **directamente al backend NestJS** que atiende `/socket.io` (por defecto se sugiere `https://socket.orchestrator.programandoweb.net`, pero no está verificado que ese DNS y el proxy estén configurados). No agregues `/argos-browser` al input; la extensión lo incorpora internamente.
+
+El panel muestra los detalles de `connect_error`, desconexión y rechazo del backend. Si dice «Sin acceso al socket», revisa antes el DNS, la configuración WebSocket en Nginx Proxy Manager y el modo directo; cambiar únicamente la URL en Chrome no puede habilitar un backend que rechaza conexiones.
 
 ## Activar modo directo en el backend
 
