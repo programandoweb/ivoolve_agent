@@ -38,14 +38,14 @@ export class HermesBrowserService{
   });
  }
  async complete(socket:Socket,body:unknown){
-  if(this.worker?.id!==socket.id||!body||typeof body!=='object')return;
+  if(this.worker?.id!==socket.id||!this.workerTenantId||!body||typeof body!=='object')return;
   const data=body as {taskId?:string;researchId?:string;prospectId?:string;status?:string;evidence?:HermesEvidence[];error?:string};
   if(typeof data.taskId!=='string')return;
   // La tabla de tareas registrada antes del despacho permite aceptar reenvíos
   // después de reiniciar Agent, sin confiar en los IDs aportados por Chrome.
   if(data.status==='success'&&typeof data.researchId==='string'&&typeof data.prospectId==='string'&&Array.isArray(data.evidence)){
    try{
-    const saved=await this.outbox.receive({taskId:data.taskId,researchId:data.researchId,prospectId:data.prospectId,evidence:data.evidence});
+    const saved=await this.outbox.receive({tenantId:this.workerTenantId,taskId:data.taskId,researchId:data.researchId,prospectId:data.prospectId,evidence:data.evidence});
     socket.emit('hermes:stored',{taskId:data.taskId,...saved});
     if(this.active?.taskId===data.taskId){
      const t=this.active;this.active=undefined;clearTimeout(t.timer);
