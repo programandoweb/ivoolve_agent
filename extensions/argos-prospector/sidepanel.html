@@ -17,6 +17,13 @@
   </div>
   <section class="card">
     <div class="section-title"><h3>Conexión Socket.IO</h3><span class="badge" id="connectionBadge">SIN CONEXIÓN</span></div>
+    <div class="pairing" id="pairing" hidden>
+      <p class="pairing-eyebrow">PRIMERA CONEXIÓN</p>
+      <p>Autoriza esta instalación en el dashboard de Argos. No necesitas copiar tokens.</p>
+      <div class="pairing-code" id="pairingCode"></div>
+      <small id="pairingExpiration"></small>
+      <a href="https://orchestrator.programandoweb.net/dashboard/agents/argos-prospector?tab=connect" target="_blank" rel="noopener noreferrer">Abrir dashboard de Argos ↗</a>
+    </div>
     <label for="server">URL pública del backend NestJS</label>
     <div class="input-wrap"><span>↗</span><input id="server" type="url" autocomplete="url" spellcheck="false" placeholder="https://socket.orchestrator.programandoweb.net"></div>
     <p class="help">Escribe el dominio que realmente dirige al backend NestJS, sin añadir <code>/argos-browser</code> ni <code>/socket.io</code>.</p>
@@ -24,7 +31,7 @@
     <p class="feedback" id="message" role="status"></p>
     <details class="diagnostics"><summary>Diagnóstico de conexión</summary>
       <p id="diagnosis">Esperando estado…</p>
-      <p>El backend debe permitir WebSockets y tener habilitado Argos. El modo sin credenciales solo debe exponerse en una red privada o protegida.</p>
+      <p>Una vez aprobado desde el dashboard, el dispositivo se conectará automáticamente sin volver a introducir códigos.</p>
     </details>
   </section>
   <section class="card steps">
