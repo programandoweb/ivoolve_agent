@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Ivoolve Hermes · Researcher",
+  "short_name": "Hermes",
+  "version": "0.1.0",
+  "minimum_chrome_version": "116",
+  "description": "Navegador verificador de fuentes públicas para investigaciones individuales iniciadas por SIC.",
+  "permissions": [
+    "tabs",
+    "storage",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "https://www.google.com/*",
+    "https://www.google.com.co/*",
+    "https://*.programandoweb.net/*",
+    "http://localhost:5020/*"
+  ],
+  "background": {
+    "service_worker": "dist/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Hermes Researcher"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.google.com/*",
+        "https://www.google.com.co/*"
+      ],
+      "js": [
+        "dist/observe.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  }
+}
