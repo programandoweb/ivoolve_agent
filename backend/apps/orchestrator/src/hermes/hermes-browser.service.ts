@@ -51,7 +51,9 @@ export class HermesBrowserService{
      const t=this.active;this.active=undefined;clearTimeout(t.timer);
      t.resolve({taskId:data.taskId,researchId:data.researchId,prospectId:data.prospectId,evidenceCount:saved.stored,
       persistence:{storedInAgent:saved.stored,syncedInSic:saved.synced,pendingSic:saved.pending},
-      evidence:data.evidence.map(e=>({url:e.url,title:e.title,summary:e.summary,sourceType:e.sourceType}))});this.dispatch();
+      evidence:data.evidence.map(e=>({url:e.url,title:e.title,summary:e.summary,sourceType:e.sourceType,capturedAt:e.fetchedAt,
+       obtainedVia:e.extracted?.obtainedVia,verificationStatus:e.extracted?.verificationStatus,
+       images:Array.isArray(e.extracted?.images)?e.extracted.images.slice(0,10):undefined}))});this.dispatch();
     }
     void this.outbox.drain().catch(()=>undefined);
    }catch(error){
