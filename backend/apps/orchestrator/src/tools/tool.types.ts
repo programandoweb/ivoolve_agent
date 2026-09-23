@@ -10,6 +10,8 @@ export interface ToolExecutionContext {
   correlationId?: string;
   campaignId?: string;
   campaignContext?: Record<string, unknown>;
+  /** Authorization derived from the actual operator's current message. */
+  allowGoogleApi?: boolean;
   researchId?: string;
   prospectId?: string;
 }
