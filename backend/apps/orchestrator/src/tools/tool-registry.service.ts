@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 
 import { ApprovalsService } from '../approvals/approvals.service';
+import { HermesBrowserService } from '../hermes/hermes-browser.service';
+import { HermesEvidenceOutboxService } from '../hermes/hermes-evidence-outbox.service';
 import { ArgosBrowserService } from '../browser/argos-browser.service';
 import { ProvidersService } from '../providers/providers.service';
 import { GoogleProspectingService } from './google-prospecting.service';
@@ -26,6 +28,8 @@ export class ToolRegistryService {
     private readonly googleProspecting: GoogleProspectingService,
     private readonly videoGenerator: VideoGeneratorService,
     private readonly sic: SicClientService,
+    private readonly hermesBrowser: HermesBrowserService,
+    private readonly hermesOutbox: HermesEvidenceOutboxService,
     private readonly argosBrowser: ArgosBrowserService,
     private readonly argosOutbox: ArgosSicOutboxService,
   ) {}
@@ -86,6 +90,11 @@ export class ToolRegistryService {
           query: 'Consulta exacta del negocio como fallback si no se conoce placeId',
           maxReviews: 'Cantidad opcional de reseñas, entre 1 y 5',
         },
+      },
+      {
+        name: 'research.browser_verify',
+        description: 'Solo Hermes con researchId y prospectId auténticos de SIC. Solicita a Chrome consultas públicas de Google Search. Antes de confirmar se preservan las evidencias en MariaDB de Agent; la sincronización SIC ocurre mediante outbox y puede quedar pendiente.',
+        arguments: { queries: 'Array de hasta 8 búsquedas específicas de un único prospecto existente en SIC' },
       },
       {
         name: 'sic.research.complete',
@@ -420,11 +429,28 @@ export class ToolRegistryService {
         };
       }
 
+      case 'research.browser_verify': {
+        if (context.agentId !== 'hermes-researcher' || !context.researchId || !context.prospectId) {
+          throw new BadRequestException('Chrome Hermes requiere una investigación activa autorizada por SIC.');
+        }
+        const queries = call.arguments?.queries;
+        if (!Array.isArray(queries) || !queries.every(q => typeof q === 'string')) {
+          throw new BadRequestException('queries debe ser un array de cadenas.');
+        }
+        return this.hermesBrowser.investigate({
+          researchId: context.researchId, prospectId: context.prospectId,
+          tenantId: context.tenantId || 'default', prospectName: this.optionalString(call,'prospectName') || String(context.prospectId),
+        }, queries);
+      }
+
       case 'sic.research.complete': {
         if (!context.researchId || !context.prospectId) {
           throw new BadRequestException(
             'La tool "sic.research.complete" solo puede usarse dentro de una investigación real iniciada por SIC.',
           );
+        }
+        if (await this.hermesOutbox.hasPending(context.researchId, context.tenantId || 'default')) {
+          throw new BadRequestException('Hermes tiene evidencias pendientes de sincronizar con SIC. Usa el panel de reintentos antes de completar.');
         }
         const profile = call.arguments?.profile;
         if (!profile || typeof profile !== 'object' || Array.isArray(profile)) {
