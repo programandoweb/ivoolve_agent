@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Argos · Prospecting</title><link rel="stylesheet" href="sidepanel.css"></head>
+<body>
+<main class="shell">
+  <header class="brand"><img src="dist/icon-48.png" alt="Argos" width="48" height="48">
+    <div class="brand-text"><small>IVOOLVE · AGENTES</small><h1>ARGOS <span>PROSPECTOR</span></h1><p>Navegador de investigación empresarial</p></div>
+  </header>
+  <section class="hero">
+    <div class="hero-top"><span class="chip"><span class="dot" id="dot"></span><span id="connection">Comprobando conexión</span></span><span class="version">v1.1</span></div>
+    <h2>Tu explorador comercial está listo.</h2>
+    <p>Argos recibe búsquedas mediante Socket.IO, recorre los resultados públicos de Google Maps y devuelve datos al orquestador.</p>
+  </section>
+  <div class="metrics">
+    <div class="metric"><span>Fichas de la tarea</span><strong id="collected">0</strong><small>Resultados observados</small></div>
+    <div class="metric"><span>Estado del worker</span><strong id="taskState">IDLE</strong><small>1 tarea simultánea</small></div>
+  </div>
+  <section class="card">
+    <div class="section-title"><h3>Conexión Socket.IO</h3><span class="badge" id="connectionBadge">SIN CONEXIÓN</span></div>
+    <label for="server">URL pública del backend NestJS</label>
+    <div class="input-wrap"><span>↗</span><input id="server" type="url" autocomplete="url" spellcheck="false" placeholder="https://socket.orchestrator.programandoweb.net"></div>
+    <p class="help">Escribe el dominio que realmente dirige al backend NestJS, sin añadir <code>/argos-browser</code> ni <code>/socket.io</code>.</p>
+    <button id="save" type="button">Guardar y conectar <span>→</span></button>
+    <p class="feedback" id="message" role="status"></p>
+    <details class="diagnostics"><summary>Diagnóstico de conexión</summary>
+      <p id="diagnosis">Esperando estado…</p>
+      <p>El backend debe permitir WebSockets y tener habilitado Argos. El modo sin credenciales solo debe exponerse en una red privada o protegida.</p>
+    </details>
+  </section>
+  <section class="card steps">
+    <h3>Cómo trabaja Argos</h3>
+    <ol><li><b>Recibe</b> la consulta que envía el agente.</li><li><b>Abre</b> Google Maps y explora la lista.</li><li><b>Espera 5 segundos</b> entre desplazamientos.</li><li><b>Recoge</b> las fichas públicas visibles y entrega los resultados.</li></ol>
+  </section>
+  <footer><span><span class="pulse"></span> ARGOS CHROME WORKER</span><span>IVOOLVE</span></footer>
+</main>
+<script type="module" src="dist/sidepanel.js"></script>
+</body></html>
