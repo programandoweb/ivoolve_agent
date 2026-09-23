@@ -47,15 +47,18 @@ export class HermesBrowserService{
    try{
     const saved=await this.outbox.receive({tenantId:this.workerTenantId,taskId:data.taskId,researchId:data.researchId,prospectId:data.prospectId,evidence:data.evidence});
     socket.emit('hermes:stored',{taskId:data.taskId,...saved});
+    // Browser may delete the local batch now: MariaDB was committed.
+    // Sync follows ACK, never before. Report actual SIC confirmations.
+    await this.outbox.drain().catch(()=>undefined);
+    const current=await this.outbox.statusForTask(data.taskId);
     if(this.active?.taskId===data.taskId){
      const t=this.active;this.active=undefined;clearTimeout(t.timer);
-     t.resolve({taskId:data.taskId,researchId:data.researchId,prospectId:data.prospectId,evidenceCount:saved.stored,
-      persistence:{storedInAgent:saved.stored,syncedInSic:saved.synced,pendingSic:saved.pending},
+     t.resolve({taskId:data.taskId,researchId:data.researchId,prospectId:data.prospectId,evidenceCount:current.stored,
+      persistence:{storedInAgent:current.stored,syncedInSic:current.synced,pendingSic:current.pending},
       evidence:data.evidence.map(e=>({url:e.url,title:e.title,summary:e.summary,sourceType:e.sourceType,capturedAt:e.fetchedAt,
        obtainedVia:e.extracted?.obtainedVia,verificationStatus:e.extracted?.verificationStatus,
        images:Array.isArray(e.extracted?.images)?e.extracted.images.slice(0,10):undefined}))});this.dispatch();
     }
-    void this.outbox.drain().catch(()=>undefined);
    }catch(error){
     socket.emit('hermes:error',{message:'No se pudo guardar en Agent; la extensión conservará el lote.'});
     if(this.active?.taskId===data.taskId){const t=this.active;this.active=undefined;clearTimeout(t.timer);t.reject(error instanceof Error?error:Error(String(error)));this.dispatch();}
