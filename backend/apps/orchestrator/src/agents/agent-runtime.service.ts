@@ -1,3 +1,4 @@
+import { explicitlyAuthorizedGoogleApi } from '../hermes/hermes-google-policy';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { ExecutionTraceService } from '../database/execution-trace.service';
@@ -61,6 +62,9 @@ export class AgentRuntimeService {
       },
     });
 
+    // Only the current human interactive input can authorize API access.
+    // SIC jobs and agent-generated/delegated instructions cannot set this flag.
+    const allowGoogleApi = agentId === 'hermes-researcher' && context.source === 'interactive' && explicitlyAuthorizedGoogleApi(userMessage);
     const agent = this.registry.get(agentId);
 
     if (!agent) {
@@ -168,6 +172,9 @@ export class AgentRuntimeService {
       agent.tools,
       '\n## Tools ejecutables disponibles en el runtime\n',
       this.tools.prompt(),
+      agent.id === 'hermes-researcher' ? (allowGoogleApi
+        ? 'El usuario autorizó explícitamente Google API en ESTE mensaje. Prioriza Chrome y el outbox SIC; usa API solo si es necesario.'
+        : 'Google API NO está autorizado. Usa exclusivamente research.browser_verify mediante extensión Chrome y outbox hacia SIC. Si Chrome está desconectado, solicita conexión y NO cambies a herramientas API.') : '',
       '',
       'Si necesitas ejecutar una tool, responde ÚNICAMENTE JSON con esta forma:',
       '{"tool":"nombre.tool","arguments":{"campo":"valor"}}',
@@ -229,6 +236,7 @@ export class AgentRuntimeService {
           campaignContext: context.campaignContext,
           researchId: context.researchId,
           prospectId: context.prospectId,
+          allowGoogleApi,
         });
       } catch (error) {
         await this.trace(context, {
