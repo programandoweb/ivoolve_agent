@@ -1,0 +1,20 @@
+:root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;font-synthesis:none}
+*{box-sizing:border-box}html,body{padding:0;margin:0;min-height:100%;background:#0b1120;color:#f1f5f9}
+body{background:radial-gradient(ellipse at top right,#31245b55,transparent 45%),linear-gradient(165deg,#0c1224,#121326)}
+.shell{padding:clamp(14px,3vw,24px);max-width:660px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.brand{display:flex;align-items:center;gap:12px;padding:4px 0 6px}.brand img{border-radius:14px;box-shadow:0 6px 26px #8b5cf633}.brand-text small{color:#c4b5fd;font-weight:800;font-size:10px;letter-spacing:2px}
+h1{font-size:17px;letter-spacing:.4px;margin:4px 0}h1 span{font-weight:500;color:#c4b5fd;font-size:12px} .brand-text p{margin:0;color:#9ca3af;font-size:11px}
+.hero{padding:22px;border:1px solid #6d5d9660;border-radius:20px;background:linear-gradient(130deg,#4b277c,#302062 56%,#25244d);box-shadow:0 14px 28px #0005}
+.hero-top,.section-title{display:flex;align-items:center;justify-content:space-between;gap:10px}.chip{display:inline-flex;align-items:center;gap:7px;background:#ffffff19;border:1px solid #ffffff25;border-radius:30px;padding:7px 10px;font-size:11px;font-weight:650}.dot{width:9px;height:9px;border-radius:50%;background:#fbbf24;flex-shrink:0}.dot.on{background:#34d399;box-shadow:0 0 10px #34d399}.version{color:#d8b4fe;font-size:11px}.hero h2{font-size:clamp(19px,4.9vw,26px);line-height:1.25;margin:22px 0 12px;letter-spacing:-.5px}.hero p{color:#ded7f9;font-size:12px;line-height:1.7;margin:0}
+.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.metric{border:1px solid #3d375b;background:#171a32;border-radius:15px;min-width:0;padding:14px;display:flex;flex-direction:column;gap:5px}
+.metric>span,.metric small{font-size:11px;color:#a8a3c0}.metric strong{font-size:clamp(18px,5vw,28px);font-weight:850;color:#e9d5ff;overflow-wrap:anywhere}
+.card{border:1px solid #343454;background:#17182cdd;border-radius:18px;padding:18px;box-shadow:0 9px 24px #0002}.card h3{margin:0 0 16px;font-size:14px;letter-spacing:.1px}.section-title{margin-bottom:12px}.section-title h3{margin:0}.badge{font-size:9px;font-weight:800;letter-spacing:.5px;border:1px solid #fbbf2450;color:#fbbf24;background:#a1620725;border-radius:30px;padding:6px 8px;text-align:center}.badge.on{border-color:#34d39970;color:#6ee7b7;background:#04785730}
+label{font-size:11px;font-weight:700;display:block;margin-bottom:9px;color:#e9e7f8}.input-wrap{display:flex;align-items:center;background:#0d1022;border:1px solid #5d5682;border-radius:11px;gap:8px;padding:0 12px}.input-wrap:focus-within{border-color:#a78bfa;box-shadow:0 0 0 3px #7c3aed33}.input-wrap span{color:#a78bfa;font-size:16px}
+input{border:none;background:transparent;outline:none;color:white;width:100%;font-size:12px;padding:13px 0;min-width:0}
+input::placeholder{color:#76728d}.help,.diagnostics p{color:#a9a7c0;font-size:11px;line-height:1.6;margin:10px 0}.help code{color:#c4b5fd}
+button{border:none;background:linear-gradient(110deg,#8b5cf6,#6d28d9);border-radius:11px;padding:13px 14px;color:white;font-weight:800;width:100%;display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-top:14px;box-shadow:0 8px 22px #7c3aed35}
+button:hover{filter:brightness(1.15)}button:disabled{cursor:wait;opacity:.65}.feedback{font-size:11px;min-height:16px;color:#c4b5fd;margin:9px 0 0}
+.diagnostics{border-top:1px solid #393857;padding-top:13px;margin-top:14px}.diagnostics summary{font-size:12px;cursor:pointer;color:#c4b5fd;font-weight:650}.diagnostics p{overflow-wrap:anywhere}
+.steps ol{margin:0;padding-left:19px;color:#c3bed5;font-size:12px;line-height:2.2}.steps b{color:#e9d5ff}
+footer{display:flex;justify-content:space-between;color:#8c86a8;font-size:10px;letter-spacing:1px;margin:3px 0 10px}.pulse{display:inline-block;width:7px;height:7px;background:#a78bfa;border-radius:50%;margin-right:6px}
+@media(max-width:350px){.metrics{grid-template-columns:1fr}.brand-text h1{font-size:14px}.brand-text h1 span{font-size:10px}}
