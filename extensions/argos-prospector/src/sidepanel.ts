@@ -1,4 +1,4 @@
-type State = { connected?: boolean; collected?: number; running?: boolean; error?: string; serverUrl?: string; phase?: string };
+type State = { connected?: boolean; collected?: number; running?: boolean; error?: string; serverUrl?: string; phase?: string; pairingCode?: string; pairingExpiresAt?: string };
 const byId=(id:string)=>document.getElementById(id)!;
 const button=byId('save') as HTMLButtonElement;
 const input=byId('server') as HTMLInputElement;
@@ -11,6 +11,10 @@ function paint(s:State){
   const badge=byId('connectionBadge');badge.textContent=s.connected?'CONECTADO':'SIN CONEXIÓN';
   badge.classList.toggle('on',Boolean(s.connected));
   if(document.activeElement!==input){input.value=s.serverUrl||'';lastValue=input.value;}
+  const pairing = byId('pairing');
+  pairing.hidden = !s.pairingCode || Boolean(s.connected);
+  byId('pairingCode').textContent = s.pairingCode || '';
+  byId('pairingExpiration').textContent = s.pairingExpiresAt ? 'Válido hasta ' + new Date(s.pairingExpiresAt).toLocaleTimeString('es-CO') : '';
   byId('diagnosis').textContent=(s.phase?'Fase: '+s.phase+'. ':'')+(s.error?'Detalle: '+s.error+'. ':'')+'Destino: '+(s.serverUrl||'sin configurar');
 }
 const request=(message:Record<string,unknown>)=>new Promise<State>(resolve=>{
