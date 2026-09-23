@@ -7,6 +7,7 @@ import {
 
 import { ApprovalsService } from '../approvals/approvals.service';
 import { HermesBrowserService } from '../hermes/hermes-browser.service';
+import { hermesSourcePlan } from '../hermes/hermes-source-plan';
 import { HermesEvidenceOutboxService } from '../hermes/hermes-evidence-outbox.service';
 import { ArgosBrowserService } from '../browser/argos-browser.service';
 import { ProvidersService } from '../providers/providers.service';
@@ -94,7 +95,7 @@ export class ToolRegistryService {
       {
         name: 'research.browser_verify',
         description: 'Solo Hermes con researchId y prospectId auténticos de SIC. Solicita a Chrome consultas públicas de Google Search. Antes de confirmar se preservan las evidencias en MariaDB de Agent; la sincronización SIC ocurre mediante outbox y puede quedar pendiente.',
-        arguments: { queries: 'Array de hasta 8 búsquedas específicas de un único prospecto existente en SIC' },
+        arguments: { prospectName: 'Nombre del prospecto presente en el contexto SIC', city: 'Ciudad solo si SIC la conoce', activity: 'Actividad conocida por SIC, cuando exista', sourceMode: 'auto por defecto; custom solo por petición explícita del operador', queries: 'Solo con sourceMode custom: máximo 8 consultas elegidas por el usuario' },
       },
       {
         name: 'sic.research.complete',
@@ -433,13 +434,25 @@ export class ToolRegistryService {
         if (context.agentId !== 'hermes-researcher' || !context.researchId || !context.prospectId) {
           throw new BadRequestException('Chrome Hermes requiere una investigación activa autorizada por SIC.');
         }
-        const queries = call.arguments?.queries;
-        if (!Array.isArray(queries) || !queries.every(q => typeof q === 'string')) {
-          throw new BadRequestException('queries debe ser un array de cadenas.');
+        const prospectName = this.optionalString(call,'prospectName');
+        if (!prospectName || prospectName.length < 2) {
+          throw new BadRequestException('Hermes requiere el nombre del prospecto recibido en el contexto SIC.');
         }
+        const custom = this.optionalString(call,'sourceMode') === 'custom';
+        const requested = call.arguments?.queries;
+        if (custom && (!Array.isArray(requested) || !requested.every(q => typeof q === 'string'))) {
+          throw new BadRequestException('sourceMode custom requiere queries: array de textos.');
+        }
+        // Deterministic, official-first browser plan. A model cannot silently
+        // replace registry research with Google snippets or image search alone.
+        const queries = custom ? requested as string[] : hermesSourcePlan({
+          name: prospectName,
+          city: this.optionalString(call,'city'),
+          activity: this.optionalString(call,'activity'),
+        });
         return this.hermesBrowser.investigate({
           researchId: context.researchId, prospectId: context.prospectId,
-          tenantId: context.tenantId || 'default', prospectName: this.optionalString(call,'prospectName') || String(context.prospectId),
+          tenantId: context.tenantId || 'default', prospectName,
         }, queries);
       }
 
