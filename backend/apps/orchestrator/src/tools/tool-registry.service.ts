@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 
 import { ApprovalsService } from '../approvals/approvals.service';
+import { ArgosBrowserService } from '../browser/argos-browser.service';
 import { ProvidersService } from '../providers/providers.service';
 import { GoogleProspectingService } from './google-prospecting.service';
 import { VideoGeneratorService } from './video-generator.service';
@@ -24,6 +25,7 @@ export class ToolRegistryService {
     private readonly googleProspecting: GoogleProspectingService,
     private readonly videoGenerator: VideoGeneratorService,
     private readonly sic: SicClientService,
+    private readonly argosBrowser: ArgosBrowserService,
   ) {}
 
   definitions(): RuntimeToolDefinition[] {
@@ -42,6 +44,14 @@ export class ToolRegistryService {
           providerId: 'ID del provider autorizado',
           recipient: 'Destinatario o JID',
           text: 'Texto a enviar',
+        },
+      },
+      {
+        name: 'prospecting.browser_maps_search',
+        description: 'Solicita a la extensión Argos Chrome conectada que navegue Google Maps, espere 5 segundos entre scrolls y recopile resultados públicos, sin Google API. Los resultados de campañas SIC se guardan automáticamente. Solo Argos puede usarla.',
+        arguments: {
+          query: 'Actividad y ciudad, por ejemplo: empresas automotrices en Pereira',
+          maxResults: 'Objetivo de 1 a 100 empresas por consulta; Maps puede mostrar menos',
         },
       },
       {
@@ -222,6 +232,41 @@ export class ToolRegistryService {
           text,
           context.tenantId,
         );
+      }
+
+      case 'prospecting.browser_maps_search': {
+        if (context.agentId !== 'argos-prospector') {
+          throw new ForbiddenException('Solo Argos puede solicitar búsquedas a su extensión.');
+        }
+        const query = this.requiredString(call, 'query');
+        const maxResults = this.optionalNumber(call, 'maxResults', 20);
+        const results = await this.argosBrowser.search(query, maxResults);
+        let savedCount = 0;
+        if (context.executionId && context.campaignId) {
+          for (const item of results) {
+            const persisted = {
+              name: item.name, address: item.address, phone: item.phone,
+              website: item.website, mapsUrl: item.mapsUrl, placeId: item.placeId,
+              sourceExternalId: item.placeId ?? item.mapsUrl,
+              sourceUrl: item.mapsUrl, sourceType: 'google_maps',
+              category: item.category, rating: item.rating,
+              userRatingCount: item.userRatingCount,
+              searchQuery: query, city: this.cityFromCampaign(context.campaignContext),
+              department: this.departmentFromCampaign(context.campaignContext),
+              country: 'CO', capturedAt: item.capturedAt,
+            };
+            await this.sic.upsertProspect(context.executionId, persisted);
+            savedCount += 1;
+          }
+        }
+        return {
+          source: 'google_maps_browser', query,
+          resultCount: results.length, requested: maxResults, results,
+          ...(context.executionId && context.campaignId ? { persistence: {
+            mode: 'automatic', savedCount, executionId: context.executionId,
+          } } : {}),
+          warning: results.length < maxResults ? 'Google Maps devolvió menos resultados que el objetivo; cambia la consulta o el área.' : undefined,
+        };
       }
 
       case 'prospecting.google_maps_search': {
@@ -643,4 +688,18 @@ export class ToolRegistryService {
     }
     return false;
   }
+  private cityFromCampaign(context?: Record<string, unknown>): string | undefined {
+    for (const key of ['city', 'ciudad']) {
+      if (typeof context?.[key] === 'string') return context[key] as string;
+    }
+    return undefined;
+  }
+
+  private departmentFromCampaign(context?: Record<string, unknown>): string | undefined {
+    for (const key of ['department', 'departamento']) {
+      if (typeof context?.[key] === 'string') return context[key] as string;
+    }
+    return undefined;
+  }
+
 }
