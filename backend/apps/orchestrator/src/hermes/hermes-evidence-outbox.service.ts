@@ -61,6 +61,13 @@ export class HermesEvidenceOutboxService implements OnModuleInit, OnModuleDestro
   const count=(s:string)=>Number(rows.find(r=>r.status===s)?.count||0);
   return {stored:rows.reduce((s,r)=>s+Number(r.count),0),synced:count('synced'),pending:count('pending')+count('processing')+count('failed')};
  }
+ async statusForTask(taskId:string):Promise<{stored:number;synced:number;pending:number}>{
+  const rows=await this.db.query<Array<RowDataPacket&{status:string;total:number}>>(
+   'SELECT status,COUNT(*) AS total FROM hermes_sic_outbox WHERE task_id=? GROUP BY status',[taskId]);
+  const count=(status:string)=>Number(rows.find(row=>row.status===status)?.total||0);
+  return {stored:rows.reduce((n,row)=>n+Number(row.total),0),
+    synced:count('synced'),pending:count('pending')+count('processing')+count('failed')};
+ }
  async hasPending(researchId:string,tenantId:string){const [r]=await this.db.query<Array<RowDataPacket&{total:number}>>(
    "SELECT COUNT(*) AS total FROM hermes_sic_outbox WHERE research_id=? AND tenant_id=? AND status<>'synced'",[researchId,tenantId]);
   const [active]=await this.db.query<Array<RowDataPacket&{total:number}>>(
