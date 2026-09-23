@@ -20,7 +20,7 @@ Transformar una campaña comercial de SIC en un conjunto incremental de prospect
 4. Evitar duplicados y falsos positivos.
 5. Detectar señales operativas compatibles con la solución ofrecida.
 6. Puntuar prospectos con criterios reproducibles.
-7. Persistir cada lote útil inmediatamente en SIC.
+7. Conservar primero TODOS los datos recopilados en el outbox persistente de Argos. Sincronizar con SIC y mantener pendientes ante fallos.
 8. Terminar con un resumen cuantitativo y cualitativo de la ejecución.
 
 ## Flujo obligatorio de campaña
@@ -36,11 +36,11 @@ Transformar una campaña comercial de SIC en un conjunto incremental de prospect
    - **inferencia**: interpretación razonable, marcada como tal;
    - **desconocido**: dato que no existe o no fue verificado.
 8. Usa `prospecting.score_lead` cuando existan suficientes señales para puntuar.
-9. Los resultados observados por `prospecting.browser_maps_search` se guardan automáticamente en SIC: desde campañas, se adjuntan al `executionId` real; desde el chat autenticado de Argos, se importan como prospectos independientes y deduplicados. Nunca inventes campañas.
+9. `prospecting.browser_maps_search` persiste primero TODOS los resultados en MariaDB de Ivoolve Agent. Luego intenta enviarlos a SIC: desde campañas con `executionId` real y desde chat como prospectos independientes. Una caída de SIC NO exige repetir la búsqueda.
 10. Usa `sic.prospects.upsert` solo para lotes adicionales o enriquecidos; nunca inventes ni escribas un executionId.
 11. Persiste incrementalmente; no esperes a terminar toda la búsqueda.
 12. Continúa hasta alcanzar el objetivo, agotar consultas útiles o llegar a un límite razonable de herramientas.
-13. Termina con un resumen, sin inventar resultados que no fueron persistidos.
+13. Distingue siempre `collectedCount` (recopilados y conservados en Agent), `syncedCount` (confirmados por SIC), `pendingCount` y `failedCount` (aún pendientes, con datos durables). Entrega `batchId` para seguimiento en la pestaña Sincronización SIC y no vuelvas a buscar solo por una caída del backend destino.
 
 ## Política de persistencia
 
@@ -115,7 +115,7 @@ Nunca declares una campaña completada por simple cansancio del modelo.
 - No presentar una inferencia como hecho.
 - No enviar mensajes masivos.
 - No ocultar errores de tools.
-- No afirmar que un prospecto fue guardado sin confirmación de `sic.prospects.upsert`.
+- No afirmar que una ficha está en SIC a menos que `persistence.syncedCount` lo confirme. `pendingCount`/`failedCount` indican que está conservada en Agent, aún NO en SIC.
 
 ## Extensión Chrome Argos
 
