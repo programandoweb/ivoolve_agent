@@ -1,0 +1,81 @@
+import { io, type Socket } from 'socket.io-client';
+type Evidence = { sourceType: string; url: string; title: string; fetchedAt: string; result: string; extracted: Record<string, unknown>; summary: string; confidence: number };
+type Task = { taskId: string; researchId: string; prospectId: string; prospectName: string; queries: string[]; maxPages: number };
+type Pending = { taskId: string; researchId: string; prospectId: string; evidence: Evidence[] };
+type State = { connected: boolean; running: boolean; phase: string; serverUrl: string; pairingCode?: string; pairingExpiresAt?: string; prospect?: string; count: number; sources: string[]; error?: string };
+const state: State = { connected:false, running:false, phase:'Iniciando', serverUrl:'https://socket.orchestrator.programandoweb.net', count:0, sources:[] };
+let socket: Socket | undefined;
+let running=false, cancelled=false;
+const pause=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
+async function publish(patch:Partial<State>){ Object.assign(state,patch);await chrome.storage.local.set({hermesState:{...state}}); }
+async function pending():Promise<Pending|undefined> {return (await chrome.storage.local.get('hermesPending')).hermesPending as Pending|undefined;}
+async function deliver(){ const item=await pending();if(item && socket?.connected)socket.emit('hermes:result',{...item,status:'success'}); }
+async function collect(task:Task):Promise<Evidence[]>{
+ if(!/^[0-9a-f-]{36}$/i.test(task.taskId)||!task.researchId||!task.prospectId||!Array.isArray(task.queries))throw Error('INVALID_TASK');
+ const queries=task.queries.filter(q=>typeof q==='string'&&q.length>=2&&q.length<=160).slice(0,Math.min(task.maxPages||5,8));
+ if(!queries.length)throw Error('NO_QUERIES');
+ const observations:Evidence[]=[];
+ const tab=await chrome.tabs.create({url:'about:blank',active:true});
+ if(!tab.id)throw Error('TAB_NOT_CREATED');
+ try{
+  for(const query of queries){
+   if(cancelled)throw Error('CANCELLED');
+   const url='https://www.google.com/search?q='+encodeURIComponent(query);
+   await chrome.tabs.update(tab.id,{url,active:true});
+   await pause(3500);
+   let observation:{url:string;title:string;text:string;links:{title:string;url:string}[];capturedAt:string};
+   try { observation=await chrome.tabs.sendMessage(tab.id,{type:'HERMES_OBSERVE'}); }
+   catch{await publish({phase:'Fuente no accesible: '+url});continue;}
+   if(!observation?.url?.startsWith('https://www.google.com/search'))continue;
+   observations.push({sourceType:'google_search_browser',url:observation.url,title:observation.title,fetchedAt:observation.capturedAt,
+      result:JSON.stringify({text:observation.text,links:observation.links,query}),
+      extracted:{query,links:observation.links},summary:observation.text.slice(0,700),confidence:0.65});
+   await publish({phase:'Fuente observada: '+query,count:observations.length,sources:observations.map(e=>e.url)});
+   await pause(1500);
+  }
+  return observations;
+ }finally{await chrome.tabs.remove(tab.id).catch(()=>undefined);}
+}
+async function connect(){
+ const cfg=await chrome.storage.local.get(['hermesServerUrl','hermesDeviceToken']);
+ const url=String(cfg.hermesServerUrl||state.serverUrl).replace(/\/$/,'');
+ if(!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(url)&&!/^http:\/\/localhost:5020$/.test(url)){await publish({error:'URL inválida'});return;}
+ socket?.disconnect();
+ socket=io(url+'/hermes-browser',{transports:['websocket'],reconnection:true,reconnectionDelay:2000,reconnectionDelayMax:30000,timeout:12000,auth:{deviceToken:cfg.hermesDeviceToken||undefined}});
+ await publish({serverUrl:url,connected:false,pairingCode:undefined,phase:'Conectando',error:undefined});
+ socket.on('hermes:pair:code',({code,expiresAt}:{code:string;expiresAt:string})=>{void publish({pairingCode:code,pairingExpiresAt:expiresAt,phase:'Esperando autorización del administrador'});});
+ socket.on('hermes:paired',async ({token}:{token:string})=>{if(!/^[a-f0-9]{64}$/.test(token))return;await chrome.storage.local.set({hermesDeviceToken:token});void connect();});
+ socket.on('hermes:ready',()=>{void publish({connected:true,pairingCode:undefined,pairingExpiresAt:undefined,phase:'Conectado; esperando tareas'});void deliver();});
+ socket.on('connect_error',(error:Error)=>{void publish({connected:false,error:error.message,phase:'Error de conexión'});});
+ socket.on('disconnect',()=>{void publish({connected:false,phase:'Sin conexión'});});
+ socket.on('hermes:error',({message}:{message?:string})=>{void publish({connected:false,error:message||'Acceso denegado'});});
+ // El navegador descarta su copia solamente cuando Agent confirma el INSERT durable.
+ socket.on('hermes:stored',async ({taskId}:{taskId:string})=>{
+  const item=await pending();if(item?.taskId===taskId){await chrome.storage.local.remove('hermesPending');await publish({phase:'Confirmado por Agent; SIC puede seguir pendiente'});}
+ });
+ socket.on('hermes:cancel',()=>{cancelled=true;});
+ socket.on('hermes:task',async(task:Task)=>{
+  if(running||await pending()) {socket?.emit('hermes:busy',{taskId:task?.taskId});void deliver();return;}
+  if(!task||typeof task.taskId!=='string'||typeof task.prospectName!=='string')return;
+  running=true;cancelled=false;
+  await publish({running:true,count:0,sources:[],prospect:task.prospectName,phase:'Investigando'});
+  try{
+    const evidence=await collect(task);
+    // Conservación local ANTES de enviar por Socket.IO, tolerante a reconexión.
+    const item:Pending={taskId:task.taskId,researchId:task.researchId,prospectId:task.prospectId,evidence};
+    await chrome.storage.local.set({hermesPending:item});
+    await publish({phase:'Recopilación conservada localmente; esperando ACK de Agent'});
+    void deliver();
+  }catch(e){socket?.emit('hermes:result',{taskId:task.taskId,status:'error',error:String(e).slice(0,300)});await publish({error:String(e),phase:'Investigación interrumpida'});}
+  finally{running=false;await publish({running:false});}
+ });
+}
+chrome.runtime.onMessage.addListener((message,_sender,reply)=>{
+ if(message?.type==='HERMES_STATE'){reply({...state});return;}
+ if(message?.type==='HERMES_RECONNECT'){void connect().then(()=>reply({...state}));return true;}
+ if(message?.type==='HERMES_CANCEL'){cancelled=true;reply({ok:true});return;}
+});
+setInterval(()=>{if(socket?.connected){socket.emit('hermes:status');void deliver();}},20000);
+void chrome.sidePanel.setPanelBehavior({openPanelOnActionClick:true});
+chrome.runtime.onInstalled.addListener(()=>void chrome.sidePanel.setPanelBehavior({openPanelOnActionClick:true}));
+void connect();
