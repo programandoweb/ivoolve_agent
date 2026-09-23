@@ -62,8 +62,8 @@ const toDirect = (links: Array<{url:string}>) => links.map(link => {
         url:actual.url,title:actual.title,fetchedAt:actual.capturedAt,
         result:JSON.stringify({text:actual.text.slice(0,9500),links:actual.links.slice(0,15)}),
         extracted:{obtainedVia:actual.obtainedVia,discoveredVia:observation.url,sourcePageUrl:actual.url,
-          verificationStatus:'direct_public_page_observed'},
-        summary:actual.text.slice(0,650),confidence:0.85});
+          verificationStatus:'direct_public_page_observed_identity_unconfirmed'},
+        summary:actual.text.slice(0,650),confidence:0.6});
       }else await publish({phase:'Página inaccesible: '+direct});
      }catch{await publish({phase:'Página restringida o no accesible: '+direct});}
     }
