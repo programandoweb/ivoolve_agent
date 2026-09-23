@@ -28,6 +28,7 @@ describe('ToolRegistryService', () => {
   const argosBrowser = { search: jest.fn() };
   const sic = {
     upsertProspect: jest.fn(),
+    importArgosProspects: jest.fn(),
   };
 
   let service: ToolRegistryService;
@@ -283,6 +284,33 @@ describe('ToolRegistryService', () => {
       sourceType: 'google_maps',
     }));
     expect(result.persistence).toEqual(expect.objectContaining({ savedCount: 1 }));
+  });
+
+  it('guarda automáticamente desde el chat de Argos sin inventar un campaign run', async () => {
+    argosBrowser.search.mockResolvedValue([{
+      name: 'Taller Real', mapsUrl: 'https://www.google.com/maps/place/Taller+Real',
+      phone: '+573001112233', sourceType: 'google_maps_browser',
+      capturedAt: '2026-09-23T00:00:00.000Z',
+    }]);
+    sic.importArgosProspects.mockResolvedValue({
+      savedCount: 1,
+      prospects: [{ id: 'sic-prospect-123', name: 'Taller Real' }],
+    });
+
+    const result = await service.execute({
+      tool: 'prospecting.browser_maps_search',
+      arguments: {
+        query: 'automotrices en Pereira', maxResults: 10, city: 'Pereira', department: 'Risaralda',
+      },
+    }, { agentId: 'argos-prospector', source: 'interactive', actorId: 'jorge' }) as Record<string, any>;
+
+    expect(sic.importArgosProspects).toHaveBeenCalledWith([expect.objectContaining({
+      name: 'Taller Real', sourceType: 'google_maps', city: 'Pereira', department: 'Risaralda',
+    })]);
+    expect(sic.upsertProspect).not.toHaveBeenCalled();
+    expect(result.persistence).toEqual(expect.objectContaining({
+      mode: 'automatic_chat', savedCount: 1,
+    }));
   });
 
   it('no permite a otros agentes controlar la extensión Argos', async () => {
