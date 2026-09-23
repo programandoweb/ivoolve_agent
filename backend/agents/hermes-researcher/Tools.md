@@ -4,7 +4,7 @@
 **Extensión Chrome Hermes exclusivamente** durante una investigación oficial SIC: `research.browser_verify`. Google Search y Google Imágenes consultados visualmente dentro de la extensión NO son Google API. Toda evidencia debe pasar por el outbox duradero Agent y recibir confirmación SIC. Sin extensión disponible, reportar impedimento, nunca cambiar automáticamente a otra herramienta.
 
 ## research.browser_verify
-Requiere `researchId` y `prospectId` auténticos inyectados por SIC; `prospectName` desde ficha SIC. Agregar `city` y `activity` si están corroborados. La estrategia automática prioriza fuentes públicas institucionales y registros mercantiles, sitio empresarial, redes indexadas y referencias de Google Imágenes. Modo `sourceMode: custom` con `queries` solo ante petición explícita del operador.
+Requiere `researchId` y `prospectId` auténticos inyectados por SIC; `prospectName` desde ficha SIC. Agregar `city` y `activity` si están corroborados. La estrategia automática usa doce consultas en Chrome, priorizando autoridades públicas y registros mercantiles, estados financieros publicados en fuentes oficiales, procesos judiciales públicos, referencias a sanciones OFAC, sitio empresarial, redes indexadas, portafolio comercial y Google Imágenes. Una referencia indexada no equivale a la consulta directa del registro. Modo `sourceMode: custom` con `queries` solo ante petición explícita del operador.
 
 El navegador distingue visita directa a registros públicos de snippets indexados. No acceder a login/CAPTCHA ni atribuir coincidencias no verificadas. Para cada evidencia guardar URL, fuente, fecha, método y estado de verificación. Las imágenes se conservan como enlaces y metadatos; sus archivos y derechos comerciales no quedan garantizados.
 
