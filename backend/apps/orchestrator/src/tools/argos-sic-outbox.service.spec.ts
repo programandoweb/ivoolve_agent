@@ -54,11 +54,13 @@ describe('ArgosSicOutboxService', () => {
       }
       if (sql.includes("SET status='synced'")) {
         const row = rows.find(r => r.id === params[3]);
+        if (!row) throw new Error('Expected outbox record');
         row.status = 'synced'; row.sic_prospect_id = params[0];
         return { affectedRows: 1 };
       }
       if (sql.includes("SET status='failed'")) {
         const row = rows.find(r => r.id === params[3]);
+        if (!row) throw new Error('Expected outbox record');
         row.status = 'failed'; row.last_error = params[0];
         return { affectedRows: 1 };
       }
