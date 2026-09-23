@@ -25,7 +25,8 @@
     "https://*.camarapereira.org.co/*",
     "https://www.instagram.com/*",
     "https://www.facebook.com/*",
-    "https://www.linkedin.com/*"
+    "https://www.linkedin.com/*",
+    "https://*.gov.co/*"
   ],
   "background": {
     "service_worker": "dist/background.js",
@@ -49,7 +50,8 @@
         "https://*.camarapereira.org.co/*",
         "https://www.instagram.com/*",
         "https://www.facebook.com/*",
-        "https://www.linkedin.com/*"
+        "https://www.linkedin.com/*",
+        "https://*.gov.co/*"
       ],
       "js": [
         "dist/observe.js"
