@@ -29,19 +29,22 @@ La URL debe resolver **directamente al backend NestJS** que atiende `/socket.io`
 
 El panel muestra los detalles de `connect_error`, desconexión y rechazo del backend. Si dice «Sin acceso al socket», revisa antes el DNS, la configuración WebSocket en Nginx Proxy Manager y el modo directo; cambiar únicamente la URL en Chrome no puede habilitar un backend que rechaza conexiones.
 
-## Activar modo directo en el backend
+## Conexión más sencilla: aprobar una vez desde el dashboard
 
-Por seguridad, las conexiones sin credenciales están **deshabilitadas por defecto**. El administrador de despliegue puede permitirlas en **una red privada** (VPN o ingress protegido) agregando al `.env` raíz:
+La extensión ya no necesita habilitar sockets anónimos. El modo directo puede permanecer desactivado (`ARGOS_BROWSER_DIRECT_ENABLED=false`). El backend genera automáticamente un código de seis dígitos visible en la extensión cuando el navegador solicita conexión por primera vez.
 
-```env
-ARGOS_BROWSER_DIRECT_ENABLED=true
-# Opcional: restringir los IDs de Chrome autorizados, separados por comas.
-ARGOS_BROWSER_ALLOWED_EXTENSION_IDS=
-```
+1. Actualiza y reconstruye el backend y frontend de Ivoolve Agent.
+2. En Chrome, instala o recarga la extensión desde `extensions/argos-prospector` después de `npm install && npm run build`.
+3. Pulsa el icono de Argos: en el panel lateral aparecerá un código temporal (válido durante cinco minutos).
+4. Abre el dashboard de `/dashboard/agents/argos-prospector?tab=connect` con una cuenta administradora.
+5. Comprueba que coincide el código de la extensión y pulsa **Autorizar**.
+6. La extensión recibe y almacena localmente una credencial aleatoria por el socket original y se reconecta sola al backend. No hay que copiar tokens, registrar IP o repetir el emparejamiento en cada inicio de Chrome.
 
-Reinicia/recrea el backend y verifica que tu proxy permita WebSocket. Los IDs de extensión no son credenciales ni protegen frente a clientes externos capaces de falsificar la cabecera `Origin`. **Nunca publiques el namespace directo `/argos-browser` en Internet sin aislamiento adicional de red o autenticación real**: permitiría que un desconocido se hiciera pasar por un navegador, capturara tareas y enviara datos falsos a SIC. El backend acepta solo tareas MAPS_SEARCH y solo entrega tareas al primer worker conectado, pero eso no reemplaza la seguridad de la conexión.
+Las credenciales autorizadas solo se guardan como hashes SHA-256 en el volumen de datos del backend (`RUNTIME_DATA_PATH`); la extensión conserva la credencial original en `chrome.storage.local`. El código temporal no autentica por sí mismo: únicamente un administrador que ya ha iniciado sesión puede aprobarlo. No compartas códigos de emparejamiento con desconocidos; verifica siempre el código que se muestra en tu propia extensión.
 
-Si quieres conectarlo desde Chrome fuera de una red privada, habilita autenticación automática con aprobación única de dispositivo; no sería seguro exponer el modo directo anónimo.
+Para mejorar la seguridad, el proxy público **no requiere modo anónimo** y debe usar HTTPS/WSS. Enviar credenciales por HTTP público no está permitido. El backend permite como máximo ocho solicitudes de emparejamiento por IP y hora y cuarenta pendientes en una instancia. El modo directo anterior sigue siendo una alternativa exclusivamente para una red privada, nunca para el proxy público.
+
+Si la extensión muestra un código antiguo, pulsa **Guardar y conectar** para generar uno nuevo. Si ves `Invalid namespace`, actualiza y reconstruye el backend NestJS antes de investigar el proxy. Si el panel no recibe el código, revisa que `https://socket.orchestrator.programandoweb.net` apunta al servicio del backend y que Nginx Proxy Manager tiene WebSockets habilitados.
 
 ## Probar con Argos
 
