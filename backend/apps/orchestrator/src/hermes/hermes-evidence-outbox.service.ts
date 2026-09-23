@@ -67,8 +67,27 @@ export class HermesEvidenceOutboxService implements OnModuleInit, OnModuleDestro
    "SELECT COUNT(*) AS total FROM hermes_browser_tasks WHERE research_id=? AND tenant_id=? AND status='dispatched'",[researchId,tenantId]);
   return Number(r?.total||0)+Number(active?.total||0)>0;}
  async list(tenantId:string){
-  return this.db.query<Row[]>(`SELECT id,task_id,research_id,prospect_id,status,attempts,last_error,created_at,synced_at
-  FROM hermes_sic_outbox WHERE tenant_id=? ORDER BY created_at DESC LIMIT 100`,[tenantId]);
+  return this.db.query<Row[]>(`SELECT id,task_id,research_id,prospect_id,payload_json,status,attempts,last_error,created_at,synced_at
+  FROM hermes_sic_outbox WHERE tenant_id=? ORDER BY created_at DESC LIMIT 100`,[tenantId]).then(rows=>rows.map(row=>{
+    const evidence=JSON.parse(row.payload_json) as HermesEvidence;
+    const raw=evidence.extracted?.images;
+    const images=Array.isArray(raw)?raw.slice(0,10):[];
+    return {id:row.id,task_id:row.task_id,research_id:row.research_id,
+      prospect_id:row.prospect_id,status:row.status,attempts:row.attempts,
+      last_error:(row as Row&{last_error?:string}).last_error,created_at:(row as Row&{created_at?:Date}).created_at,
+      synced_at:(row as Row&{synced_at?:Date}).synced_at,
+      sourceType:evidence.sourceType,sourceUrl:evidence.url,title:evidence.title,
+      capturedAt:evidence.fetchedAt,obtainedVia:evidence.extracted?.obtainedVia||'chrome_visible_dom',
+      verificationStatus:evidence.extracted?.verificationStatus||'unverified',
+      images:images.map(img=>({
+        thumbnailUrl:(img as Record<string,unknown>)?.thumbnailUrl,
+        landingPageUrl:(img as Record<string,unknown>)?.landingPageUrl,
+        sourcePageUrl:(img as Record<string,unknown>)?.sourcePageUrl,
+        alt:(img as Record<string,unknown>)?.alt,
+        usageRights:'not_verified',
+      }))
+    };
+  }));
  }
  async retry(id:string,tenantId:string){
   const changed=await this.db.execute("UPDATE hermes_sic_outbox SET status='pending',next_attempt_at=NULL WHERE id=? AND tenant_id=? AND status IN ('pending','failed')",[id,tenantId]);
