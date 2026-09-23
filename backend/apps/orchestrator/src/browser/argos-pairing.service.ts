@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException, TooManyRequestsException } from '@nestjs/common';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { mkdir, readFile, writeFile, rename, chmod } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { Socket } from 'socket.io';
 
 type Pending = { code: string; socket: Socket; expiresAt: number; ip: string };
@@ -10,7 +10,7 @@ type Authorized = { hash: string; approvedAt: string; deviceName: string };
 export class ArgosPairingService {
   private readonly pending = new Map<string, Pending>();
   private readonly attempts = new Map<string, { count: number; resetAt: number }>();
-  private readonly file = process.env.ARGOS_PAIRING_DATA_FILE || '/app/data/argos-browser-devices.json';
+  private readonly file = process.env.ARGOS_PAIRING_DATA_FILE || join(process.env.RUNTIME_DATA_PATH || './data/runtime', 'argos-browser-devices.json');
   private readonly ttl = 5 * 60_000;
   private serialized = Promise.resolve();
 
