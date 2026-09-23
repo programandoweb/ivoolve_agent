@@ -39,7 +39,7 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - name: Test deterministic official-source planning
-        run: npm test -- --runInBand apps/orchestrator/src/hermes/hermes-source-plan.spec.ts
+        run: npm test -- --runInBand apps/orchestrator/src/hermes
       - name: Typecheck and compile NestJS
         run: npm run build
   frontend:
