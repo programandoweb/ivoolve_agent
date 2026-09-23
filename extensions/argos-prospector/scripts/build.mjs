@@ -13,7 +13,8 @@ const opts = {
   entryPoints: {
     background: path.join(root, 'src/background.ts'),
     maps: path.join(root, 'src/maps.ts'),
-    popup: path.join(root, 'src/popup.ts')
+    popup: path.join(root, 'src/popup.ts'),
+    sidepanel: path.join(root, 'src/sidepanel.ts')
   },
   outdir: path.join(root, 'dist'),
   bundle: true, format: 'esm', target: ['chrome116'], platform: 'browser', logLevel: 'info',
