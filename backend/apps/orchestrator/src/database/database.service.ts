@@ -253,6 +253,21 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       // Outbox transaccional: los resultados de Chrome sobreviven a fallos de SIC,
       // reinicios del runtime y cortes de red. El payload original no se trunca.
+      `CREATE TABLE IF NOT EXISTS argos_task_templates (
+        id VARCHAR(64) PRIMARY KEY,
+        tenant_id VARCHAR(64) NOT NULL,
+        title VARCHAR(140) NOT NULL,
+        description VARCHAR(600) NOT NULL,
+        sector VARCHAR(120) NOT NULL,
+        default_city VARCHAR(120) NOT NULL,
+        default_department VARCHAR(120) NOT NULL,
+        default_quantity INT NOT NULL DEFAULT 10,
+        prompt_template LONGTEXT NOT NULL,
+        created_by VARCHAR(120) NULL,
+        created_at DATETIME(3) NOT NULL,
+        updated_at DATETIME(3) NOT NULL,
+        INDEX idx_argos_templates_tenant (tenant_id, updated_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       `CREATE TABLE IF NOT EXISTS argos_sic_outbox (
         id VARCHAR(64) PRIMARY KEY,
         tenant_id VARCHAR(64) NOT NULL,
