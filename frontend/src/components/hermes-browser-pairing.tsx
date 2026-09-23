@@ -25,7 +25,7 @@ export function HermesBrowserPairing(){
    <div className="rounded-xl border p-4"><h3 className="mb-3 font-bold">Emparejar dispositivo</h3>
     <label htmlFor="hermes-code" className="text-xs text-zinc-600">Código mostrado exclusivamente en Chrome Hermes</label>
     <input id="hermes-code" value={code} maxLength={6} inputMode="numeric" autoComplete="off"
-      onChange={e=>setCode(e.target.value.replace(/\\D/g,'').slice(0,6))}
+      onChange={e=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))}
       placeholder="000000" className="mt-2 w-full rounded-xl border p-3 font-mono text-2xl tracking-widest"/>
     <button disabled={busy===code||code.length!==6} onClick={()=>void approve(code)}
       className="mt-3 rounded-xl bg-violet-700 px-4 py-2 font-bold text-white disabled:opacity-40">Autorizar Chrome Hermes</button>
