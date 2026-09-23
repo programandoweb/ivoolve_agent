@@ -22,7 +22,7 @@ export class HermesBrowserService{
  async investigate(context:{researchId:string;prospectId:string;tenantId:string;prospectName:string},queries:string[]){
   if(!this.available||this.workerTenantId!==context.tenantId)throw new ServiceUnavailableException('Conecta una extensión Hermes autorizada para este tenant.');
   if(!context.researchId||!context.prospectId||!context.tenantId)throw new BadRequestException('Hermes requiere investigación y prospecto SIC auténticos.');
-  const safe=queries.filter(q=>typeof q==='string'&&q.length>1&&q.length<=160).slice(0,8);
+  const safe=queries.filter(q=>typeof q==='string'&&q.length>1&&q.length<=160).slice(0,12);
   if(!safe.length)throw new BadRequestException('Proporciona consultas de investigación específicas.');
   const taskId=randomUUID();
   await this.outbox.register({taskId,tenantId:context.tenantId,researchId:context.researchId,prospectId:context.prospectId});
