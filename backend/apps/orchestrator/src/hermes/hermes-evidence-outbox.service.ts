@@ -22,10 +22,10 @@ export class HermesEvidenceOutboxService implements OnModuleInit, OnModuleDestro
     VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE task_id=task_id`,
     [task.taskId,task.tenantId,task.researchId,task.prospectId,'dispatched',new Date()]);
  }
- async receive(body:{taskId:string;researchId:string;prospectId:string;evidence:HermesEvidence[]}):Promise<{stored:number;synced:number;pending:number}>{
+ async receive(body:{tenantId:string;taskId:string;researchId:string;prospectId:string;evidence:HermesEvidence[]}):Promise<{stored:number;synced:number;pending:number}>{
   if(!this.db.enabled)throw new ServiceUnavailableException('MariaDB no disponible; conservar lote en Chrome.');
   const [task]=await this.db.query<TaskRow[]>('SELECT tenant_id,research_id,prospect_id FROM hermes_browser_tasks WHERE task_id=? LIMIT 1',[body.taskId]);
-  if(!task||task.research_id!==body.researchId||task.prospect_id!==body.prospectId)throw new BadRequestException('Tarea Hermes no autorizada por SIC/Agent.');
+  if(!task||task.tenant_id!==body.tenantId||task.research_id!==body.researchId||task.prospect_id!==body.prospectId)throw new BadRequestException('Tarea Hermes no autorizada por SIC/Agent.');
   if(!Array.isArray(body.evidence)||body.evidence.length>16)throw new BadRequestException('Cantidad de evidencias inválida.');
   for(const evidence of body.evidence){
    if(!evidence || typeof evidence.url!=='string' || typeof evidence.sourceType!=='string'
