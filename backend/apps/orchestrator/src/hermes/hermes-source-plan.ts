@@ -21,5 +21,5 @@ export function hermesSourcePlan(input: {
     identity+where+' site:instagram.com',
     identity+where+' site:linkedin.com/company',
     'IMAGE:'+identity+where+' '+activity+' portafolio productos servicios eventos'
-  ];
+  ].map(query => query.slice(0, 160));
 }
