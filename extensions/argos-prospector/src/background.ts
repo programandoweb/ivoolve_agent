@@ -2,7 +2,7 @@ import { io, type Socket } from 'socket.io-client';
 
 type Place = { name: string; mapsUrl: string; address?: string; phone?: string; website?: string; category?: string; rating?: number; userRatingCount?: number; placeId?: string };
 type Task = { taskId: string; type: 'MAPS_SEARCH'; query: string; maxResults: number; scrollDelayMs: number };
-type State = { connected: boolean; collected: number; running: boolean; error?: string; serverUrl: string };
+type State = { connected: boolean; collected: number; running: boolean; error?: string; serverUrl: string; phase?: string };
 let socket: Socket | undefined;
 let running = false;
 let cancelled = false;
@@ -81,19 +81,19 @@ async function connect() {
     transports: ['websocket'], reconnection: true, reconnectionDelay: 2000,
     reconnectionDelayMax: 30000, timeout: 12000,
   });
-  publish({ serverUrl, connected: false, error: undefined });
-  socket.on('connect', () => publish({ connected: false, error: 'Registrando navegador…' }));
-  socket.on('argos:ready', () => publish({ connected: true, error: undefined }));
+  publish({ serverUrl, connected: false, error: undefined, phase: 'Conectando' });
+  socket.on('connect', () => publish({ connected: false, error: undefined, phase: 'Socket conectado; esperando aceptación del servidor' }));
+  socket.on('argos:ready', () => publish({ connected: true, error: undefined, phase: 'Preparado para recibir tareas' }));
   socket.on('argos:error', ({ message }: { message?: string }) =>
-    publish({ connected: false, error: message || 'Conexión rechazada' }));
-  socket.on('disconnect', () => publish({ connected: false, error: 'Socket desconectado' }));
-  socket.on('connect_error', () => publish({ connected: false, error: 'Sin acceso al socket' }));
+    publish({ connected: false, phase: 'Rechazado por el servidor', error: message || 'Conexión rechazada: comprueba ARGOS_BROWSER_DIRECT_ENABLED y el acceso privado' }));
+  socket.on('disconnect', (reason: string) => publish({ connected: false, phase: 'Desconectado', error: 'Socket desconectado: '+reason }));
+  socket.on('connect_error', (error: Error) => publish({ connected: false, phase: 'No se pudo establecer WebSocket', error: error.message + '. Comprueba el dominio, proxy WebSocket y acceso al backend.' }));
   socket.on('argos:cancel', () => { cancelled = true; });
   socket.on('argos:task', async (task: Task) => {
     if (running) return; // El servidor posee la cola; una pestaña por worker.
     if (task?.type !== 'MAPS_SEARCH' || !/^[\da-f-]{36}$/i.test(task.taskId)) return;
     running = true; cancelled = false;
-    publish({ running: true, collected: 0, error: undefined });
+    publish({ running: true, collected: 0, error: undefined, phase: 'Buscando: ' + task.query.slice(0, 100) });
     try {
       const places = await search(task);
       socket?.emit('argos:result', { taskId: task.taskId, status: 'success', places });
@@ -101,7 +101,7 @@ async function connect() {
       socket?.emit('argos:result', { taskId: task.taskId, status: 'error', error: String(error) });
     } finally {
       running = false;
-      publish({ running: false });
+      publish({ running: false, phase: 'Tarea finalizada; esperando la siguiente' });
     }
   });
 }
@@ -114,5 +114,10 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
     void connect().then(() => sendResponse({ ...state }));
     return true;
   }
+});
+// Chrome muestra el panel lateral nativo a la derecha al pulsar el icono.
+void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+chrome.runtime.onInstalled.addListener(() => {
+  void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 });
 void connect();
