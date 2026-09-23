@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException, TooManyRequestsException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, HttpException, HttpStatus } from '@nestjs/common';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { mkdir, readFile, writeFile, rename, chmod } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -47,9 +47,9 @@ export class ArgosPairingService {
     const ip = socket.handshake.address || 'unknown';
     const now = Date.now();
     const rate = this.attempts.get(ip);
-    if (rate && rate.resetAt > now && rate.count >= 8) throw new TooManyRequestsException('Demasiadas solicitudes de emparejamiento.');
+    if (rate && rate.resetAt > now && rate.count >= 8) throw new HttpException('Demasiadas solicitudes de emparejamiento.', HttpStatus.TOO_MANY_REQUESTS);
     this.attempts.set(ip, rate && rate.resetAt > now ? { ...rate, count: rate.count + 1 } : { count: 1, resetAt: now + 60 * 60_000 });
-    if (this.pending.size >= 40) throw new TooManyRequestsException('Demasiados dispositivos pendientes.');
+    if (this.pending.size >= 40) throw new HttpException('Demasiados dispositivos pendientes.', HttpStatus.TOO_MANY_REQUESTS);
     // Código legible que se muestra en Chrome. La autorización requiere admin.
     let code = '';
     do { code = String(randomBytes(4).readUInt32BE(0) % 1_000_000).padStart(6, '0'); }
