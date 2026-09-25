@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Headers, HttpCode, Post } from '@nestjs/common';
-import { IsArray, IsObject, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsArray, IsObject, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import { IvoolveSicIntegrationService } from './ivoolvesic-integration.service';
 
 class SicCampaignRunDto {
@@ -22,6 +22,13 @@ class SicResearchRunDto {
 class SicTestTaskDto {
   @IsString() @MinLength(2) @MaxLength(120) agent_id!: string;
   @IsString() @MinLength(1) @MaxLength(6000) message!: string;
+}
+
+class SicProposalGenerateDto {
+  @IsUUID() prospectId!: string;
+  @IsObject() prospect!: Record<string, unknown>;
+  @IsOptional() @IsObject() campaign?: Record<string, unknown>;
+  @IsOptional() @IsString() @MaxLength(4000) prompt?: string;
 }
 
 @Controller('internal/v1/integrations/ivoolvesic')
@@ -47,6 +54,15 @@ export class IvoolveSicIntegrationController {
   ) {
     this.integration.assertServiceToken(authorization);
     return this.integration.testTask(dto.agent_id, dto.message);
+  }
+
+  @Post('proposals/generate')
+  generateProposal(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: SicProposalGenerateDto,
+  ) {
+    this.integration.assertServiceToken(authorization);
+    return this.integration.generateProposal(dto);
   }
 
   @Post('research-runs')
