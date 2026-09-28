@@ -81,6 +81,68 @@ export class IvoolveSicIntegrationService {
     }
   }
 
+  async extendProposal(input: {
+    proposalId: string;
+    prospectId: string;
+    prospect: Record<string, unknown>;
+    campaign?: Record<string, unknown>;
+    currentContent: string;
+    instructions: string;
+    prompt?: string;
+  }) {
+    const executionId = randomUUID();
+    const sessionId = `sic-proposal-extend-${input.proposalId}-${executionId}`;
+    const agentId = 'ivoolve-erp-sales';
+    const instruction = [
+      'Extiende y mejora una propuesta comercial existente para Ivoolve ERP usando EXCLUSIVAMENTE el contexto suministrado por SIC.',
+      'Conserva los hechos verificables de la propuesta actual y aplica las instrucciones humanas sin inventar datos, precios, funcionalidades, responsables ni dolores no soportados.',
+      'No ejecutes herramientas: esta tarea es únicamente de redacción con información ya verificada.',
+      'Devuelve únicamente la propuesta completa final en español, lista para nueva revisión humana, sin JSON ni bloques Markdown.',
+      input.prompt?.trim() ? `Instrucción comercial configurada en SIC: ${input.prompt.trim()}` : '',
+      `Instrucciones humanas para extender la propuesta: ${input.instructions.trim()}`,
+      `Propuesta actual: ${input.currentContent}`,
+      `Prospecto: ${JSON.stringify(input.prospect)}`,
+      `Campaña: ${JSON.stringify(input.campaign ?? {})}`,
+    ].filter(Boolean).join('\n\n');
+
+    await this.traces.start({
+      id: executionId,
+      agentId,
+      source: 'ivoolve_sic_proposal_extension',
+      input,
+      metadata: {
+        integration: 'ivoolvesic',
+        proposalId: input.proposalId,
+        prospectId: input.prospectId,
+        operation: 'proposal.extend',
+      },
+    });
+
+    try {
+      const result = await this.runtime.chatAsAgent(sessionId, instruction, agentId, {
+        source: 'integration',
+        executionId,
+        proposalId: input.proposalId,
+        prospectId: input.prospectId,
+      });
+      await this.traces.finish(executionId, 'completed', {
+        stage: 'completed',
+        output: result,
+      });
+      return {
+        executionId,
+        agentId,
+        content: result.answer.trim(),
+      };
+    } catch (error) {
+      await this.traces.finish(executionId, 'failed', {
+        stage: 'failed',
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
   async testTask(agentId: string, message: string) {
     const executionId = randomUUID();
     const sessionId = `sic-test-${executionId}`;
