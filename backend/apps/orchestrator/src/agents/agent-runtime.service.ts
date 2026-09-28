@@ -171,7 +171,7 @@ export class AgentRuntimeService {
       '\n## Herramientas declaradas por el agente\n',
       agent.tools,
       '\n## Tools ejecutables disponibles en el runtime\n',
-      this.tools.prompt(),
+      this.tools.prompt(agent.id),
       agent.id === 'hermes-researcher' ? (allowGoogleApi
         ? 'El usuario autorizó explícitamente Google API en ESTE mensaje. Prioriza Chrome y el outbox SIC; usa API solo si es necesario.'
         : 'Google API NO está autorizado. Usa exclusivamente research.browser_verify mediante extensión Chrome y outbox hacia SIC. Si Chrome está desconectado, solicita conexión y NO cambies a herramientas API.') : '',

@@ -438,6 +438,15 @@ describe('ToolRegistryService', () => {
     expect(result).not.toHaveProperty('persistence');
   });
 
+  it('no expone prospecting.google_search en el prompt de tools de Argos', () => {
+    const argosTools = service.definitions('argos-prospector').map((tool) => tool.name);
+    const hermesTools = service.definitions('hermes-researcher').map((tool) => tool.name);
+
+    expect(argosTools).not.toContain('prospecting.google_search');
+    expect(service.prompt('argos-prospector')).not.toContain('prospecting.google_search');
+    expect(hermesTools).toContain('prospecting.google_search');
+  });
+
   it('bloquea prospecting.google_search para Argos aunque la tool exista para Hermes', async () => {
     await expect(
       service.execute(

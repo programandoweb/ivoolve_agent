@@ -36,8 +36,8 @@ export class ToolRegistryService {
     private readonly argosOutbox: ArgosSicOutboxService,
   ) {}
 
-  definitions(): RuntimeToolDefinition[] {
-    return [
+  definitions(agentId?: string): RuntimeToolDefinition[] {
+    const definitions: RuntimeToolDefinition[] = [
       {
         name: 'provider.list',
         description:
@@ -158,10 +158,18 @@ export class ToolRegistryService {
         },
       },
     ];
+
+    // Do not expose blocked tools to Argos' LLM prompt. The execute() guard
+    // remains as defense-in-depth in case a stale model/session still asks for it.
+    if (agentId === 'argos-prospector') {
+      return definitions.filter((tool) => tool.name !== 'prospecting.google_search');
+    }
+
+    return definitions;
   }
 
-  prompt(): string {
-    return this.definitions()
+  prompt(agentId?: string): string {
+    return this.definitions(agentId)
       .map((tool) => {
         const args = Object.entries(tool.arguments)
           .map(([name, description]) => `${name}: ${description}`)
