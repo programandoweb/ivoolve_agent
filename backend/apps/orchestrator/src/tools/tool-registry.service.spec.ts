@@ -286,6 +286,15 @@ describe('ToolRegistryService', () => {
       campaignId: 'campaign-1',
       prospects: [expect.objectContaining({
         name: 'Taller Uno', city: 'Pereira', sourceType: 'google_maps',
+        activity: 'unknown',
+        profile: expect.objectContaining({
+          discovery: expect.objectContaining({
+            provider: 'google_maps',
+            sourceType: 'google_maps',
+            verified: true,
+            searchQuery: 'automotrices en Pereira',
+          }),
+        }),
       })],
     }));
     expect(sic.upsertProspect).not.toHaveBeenCalled(); // outbox owns the send/ACK
@@ -373,6 +382,16 @@ describe('ToolRegistryService', () => {
         sourceType: 'google_maps',
         rating: 4.8,
         userRatingCount: 21,
+        activity: 'active',
+        profile: expect.objectContaining({
+          discovery: expect.objectContaining({
+            placeId: 'place-1',
+            rating: 4.8,
+            reviewsCount: 21,
+            businessStatus: 'OPERATIONAL',
+            verified: true,
+          }),
+        }),
       }),
     );
     expect(result.persistence).toEqual(
@@ -407,6 +426,23 @@ describe('ToolRegistryService', () => {
 
     expect(sic.upsertProspect).not.toHaveBeenCalled();
     expect(result).not.toHaveProperty('persistence');
+  });
+
+  it('bloquea prospecting.google_search para Argos aunque la tool exista para Hermes', async () => {
+    await expect(
+      service.execute(
+        {
+          tool: 'prospecting.google_search',
+          arguments: { query: 'empresa Pereira' },
+        },
+        {
+          agentId: 'argos-prospector',
+          source: 'interactive',
+        },
+      ),
+    ).rejects.toThrow('Argos no usa prospecting.google_search');
+
+    expect(googleProspecting.searchWeb).not.toHaveBeenCalled();
   });
 
   it('inyecta el executionId real de SIC y rechaza ids inventados', async () => {
