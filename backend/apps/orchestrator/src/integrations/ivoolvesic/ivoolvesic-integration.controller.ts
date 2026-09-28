@@ -31,6 +31,16 @@ class SicProposalGenerateDto {
   @IsOptional() @IsString() @MaxLength(4000) prompt?: string;
 }
 
+class SicProposalExtendDto {
+  @IsUUID() proposalId!: string;
+  @IsUUID() prospectId!: string;
+  @IsObject() prospect!: Record<string, unknown>;
+  @IsOptional() @IsObject() campaign?: Record<string, unknown>;
+  @IsString() @MinLength(1) @MaxLength(12000) currentContent!: string;
+  @IsString() @MinLength(1) @MaxLength(4000) instructions!: string;
+  @IsOptional() @IsString() @MaxLength(4000) prompt?: string;
+}
+
 @Controller('internal/v1/integrations/ivoolvesic')
 export class IvoolveSicIntegrationController {
   constructor(private readonly integration: IvoolveSicIntegrationService) {}
@@ -63,6 +73,15 @@ export class IvoolveSicIntegrationController {
   ) {
     this.integration.assertServiceToken(authorization);
     return this.integration.generateProposal(dto);
+  }
+
+  @Post('proposals/extend')
+  extendProposal(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: SicProposalExtendDto,
+  ) {
+    this.integration.assertServiceToken(authorization);
+    return this.integration.extendProposal(dto);
   }
 
   @Post('research-runs')
