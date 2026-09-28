@@ -1,5 +1,7 @@
 import { ApprovalsService } from '../approvals/approvals.service';
 import { ArgosBrowserService } from '../browser/argos-browser.service';
+import { HermesBrowserService } from '../hermes/hermes-browser.service';
+import { HermesEvidenceOutboxService } from '../hermes/hermes-evidence-outbox.service';
 import { ProvidersService } from '../providers/providers.service';
 import { GoogleProspectingService } from './google-prospecting.service';
 import { ToolRegistryService } from './tool-registry.service';
@@ -26,6 +28,12 @@ describe('ToolRegistryService', () => {
     generate: jest.fn(),
     status: jest.fn(),
   };
+  const hermesBrowser = { search: jest.fn() };
+  const hermesOutbox = {
+    register: jest.fn(),
+    receive: jest.fn(),
+    hasPending: jest.fn(),
+  };
   const argosBrowser = { search: jest.fn() };
   const argosOutbox = { enqueue: jest.fn() };
   const sic = {
@@ -46,6 +54,8 @@ describe('ToolRegistryService', () => {
       googleProspecting as unknown as GoogleProspectingService,
       videoGenerator as unknown as VideoGeneratorService,
       sic as unknown as SicClientService,
+      hermesBrowser as unknown as HermesBrowserService,
+      hermesOutbox as unknown as HermesEvidenceOutboxService,
       argosBrowser as unknown as ArgosBrowserService,
       argosOutbox as unknown as ArgosSicOutboxService,
     );
