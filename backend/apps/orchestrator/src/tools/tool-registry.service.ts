@@ -15,6 +15,7 @@ import { GoogleProspectingService } from './google-prospecting.service';
 import { VideoGeneratorService } from './video-generator.service';
 import { ArgosSicOutboxService } from './argos-sic-outbox.service';
 import { SicClientService } from './sic-client.service';
+import { normalizeProspectPayload } from './prospect-contract';
 import {
   RuntimeToolDefinition,
   ToolCallEnvelope,
@@ -76,7 +77,7 @@ export class ToolRegistryService {
       {
         name: 'prospecting.google_search',
         description:
-          'Google Programmable Search API. Hermes solo puede usarla si el operador autoriza Google API explícitamente en el mensaje actual. Chrome y persistencia SIC siempre son prioritarios.',
+          'Google Programmable Search API. No está disponible para Argos. Hermes solo puede usarla si el operador autoriza Google API explícitamente en el mensaje actual. Chrome y persistencia SIC siempre son prioritarios.',
         arguments: {
           query: 'Consulta específica de enriquecimiento',
           maxResults: 'Cantidad opcional de resultados entre 1 y 10',
@@ -136,9 +137,9 @@ export class ToolRegistryService {
       {
         name: 'sic.prospects.upsert',
         description:
-          'Persiste en Ivoolve SIC un lote de prospectos encontrado durante una campaña externa. SIC deduplica y conserva la fuente de verdad.',
+          'Persiste en Ivoolve SIC un lote de prospectos encontrado durante una campaña externa. El runtime normaliza el contrato canónico Argos -> SIC, conserva profile.discovery y SIC deduplica como fuente de verdad.',
         arguments: {
-          prospects: 'Array de prospectos. Cada item debe incluir name y datos verificables disponibles. El executionId real lo inyecta el runtime cuando la ejecución proviene de SIC.',
+          prospects: 'Array de prospectos. Cada item debe incluir name; usar datos observados como address, phone, website/domain, mapsUrl, category, city, department, country, placeId y profile.discovery cuando existan. No controlar id, normalized_name, status, score ni timestamps.',
         },
       },
       {
@@ -257,17 +258,16 @@ export class ToolRegistryService {
         const results = await this.argosBrowser.search(query, maxResults);
         const city = this.cityFromCampaign(context.campaignContext) ?? this.optionalString(call, 'city');
         const department = this.departmentFromCampaign(context.campaignContext) ?? this.optionalString(call, 'department');
-        const browserProspects = results.map(item => ({
-          name: item.name, address: item.address, phone: item.phone,
-          website: item.website, mapsUrl: item.mapsUrl, placeId: item.placeId,
-          sourceExternalId: item.placeId ?? item.mapsUrl,
-          sourceUrl: item.mapsUrl, sourceType: 'google_maps',
-          category: item.category, rating: item.rating,
-          userRatingCount: item.userRatingCount,
-          searchQuery: query,
-          city, department,
-          country: 'CO', capturedAt: item.capturedAt,
-        }));
+        const browserProspects = results.map(item =>
+          normalizeProspectPayload(
+            {
+              ...item,
+              sourceType: 'google_maps',
+              sourceUrl: item.mapsUrl,
+            },
+            { query, city, department, country: 'CO', sourceType: 'google_maps' },
+          ),
+        );
 
         // Durable boundary: persist the ENTIRE browser result set before ANY
         // HTTP request to SIC. A 500/network timeout cannot lose the search.
@@ -282,6 +282,7 @@ export class ToolRegistryService {
         return {
           source: 'google_maps_browser', query,
           resultCount: results.length, requested: maxResults, results,
+          serializedProspects: browserProspects,
           persistence,
           warning: results.length < maxResults
             ? 'Google Maps devolvió menos resultados que el objetivo; cambia la consulta o el área.'
@@ -338,6 +339,11 @@ export class ToolRegistryService {
       }
 
       case 'prospecting.google_search': {
+        if (context.agentId === 'argos-prospector') {
+          throw new ForbiddenException(
+            'Argos no usa prospecting.google_search. Debe descubrir empresas con prospecting.browser_maps_search y conservar los enlaces públicos para Hermes.',
+          );
+        }
         if (context.agentId === 'hermes-researcher' && !context.allowGoogleApi) {
           throw new ForbiddenException('Google API bloqueada para Hermes: utiliza la extensión Chrome y guarda en SIC. Autorización explícita requerida en el mensaje actual: AUTORIZO GOOGLE API.');
         }
@@ -549,24 +555,18 @@ export class ToolRegistryService {
             throw new BadRequestException('Cada prospecto requiere name.');
           }
           saved.push(
-            await this.sic.upsertProspect(executionId, {
-              ...source,
-              address: source.address ?? source.formattedAddress,
-              phone:
-                source.phone ??
-                source.internationalPhoneNumber ??
-                source.nationalPhoneNumber,
-              website: source.website ?? source.websiteUri,
-              mapsUrl: source.mapsUrl ?? source.googleMapsUri,
-              category: source.category ?? source.primaryType,
-              sourceExternalId: source.sourceExternalId ?? source.placeId,
-              sourceUrl:
-                source.sourceUrl ?? source.googleMapsUri ?? source.mapsUrl,
-              sourceType:
-                typeof source.sourceType === 'string'
-                  ? source.sourceType
-                  : 'google_maps',
-            }),
+            await this.sic.upsertProspect(
+              executionId,
+              normalizeProspectPayload(source, {
+                city: this.cityFromCampaign(context.campaignContext),
+                department: this.departmentFromCampaign(context.campaignContext),
+                country:
+                  typeof context.campaignContext?.country === 'string'
+                    ? context.campaignContext.country
+                    : 'CO',
+                sourceType: 'google_maps',
+              }),
+            ),
           );
         }
         return { savedCount: saved.length, prospects: saved };
@@ -655,36 +655,19 @@ export class ToolRegistryService {
     context: ToolExecutionContext,
   ): Record<string, unknown> {
     const campaign = context.campaignContext ?? {};
-    const country =
-      typeof campaign.country === 'string' && campaign.country.trim()
-        ? campaign.country.trim().toUpperCase()
-        : 'CO';
-
-    return {
-      name: source.name,
-      placeId: source.placeId,
-      sourceExternalId: source.placeId,
-      address: source.formattedAddress,
-      phone:
-        source.internationalPhoneNumber ?? source.nationalPhoneNumber,
-      website: source.websiteUri,
-      mapsUrl: source.googleMapsUri,
-      sourceUrl: source.googleMapsUri,
-      category: source.primaryType,
-      city:
-        typeof campaign.city === 'string' ? campaign.city : undefined,
+    return normalizeProspectPayload(source as Record<string, unknown>, {
+      query,
+      city: typeof campaign.city === 'string' ? campaign.city : undefined,
       department:
         typeof campaign.department === 'string'
           ? campaign.department
           : undefined,
-      country,
+      country:
+        typeof campaign.country === 'string' && campaign.country.trim()
+          ? campaign.country.trim().toUpperCase()
+          : 'CO',
       sourceType: 'google_maps',
-      confidence: source.confidence ?? 'high',
-      rating: source.rating,
-      userRatingCount: source.userRatingCount,
-      businessStatus: source.businessStatus,
-      searchQuery: query,
-    };
+    });
   }
 
   private requiredString(call: ToolCallEnvelope, key: string): string {

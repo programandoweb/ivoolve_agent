@@ -21,18 +21,6 @@ Estrategia:
 - máximo 20 resultados por llamada;
 - variar consulta cuando el conjunto deje de producir entidades nuevas.
 
-### prospecting.google_search
-
-Fuente secundaria de enriquecimiento.
-
-Usarla después de identificar la empresa en Maps para:
-- confirmar sitio o actividad;
-- encontrar señales públicas de operación;
-- buscar servicios, noticias, vacantes o crecimiento;
-- resolver ambigüedades.
-
-No usarla como sustituto automático de Maps para descubrimiento masivo.
-
 ### prospecting.score_lead
 
 Scoring reproducible.
@@ -53,23 +41,51 @@ Reglas:
 - preservar datos observados;
 - esperar confirmación de la tool antes de considerar el lote guardado.
 
-Formato recomendado por prospecto:
+Contrato canónico recomendado por prospecto:
 
 ```json
 {
   "name": "Empresa",
-  "placeId": "google-place-id",
   "address": "Dirección observada",
   "phone": "+57...",
   "website": "https://...",
-  "mapsUrl": "https://maps.google.com/...",
+  "domain": "empresa.com",
+  "mapsUrl": "https://www.google.com/maps/...",
   "category": "categoría observada",
   "city": "Ciudad",
   "department": "Departamento",
   "country": "CO",
-  "sourceType": "google_maps"
+  "activity": "active",
+  "placeId": "google-place-id",
+  "sourceExternalId": "google-place-id",
+  "sourceUrl": "https://www.google.com/maps/...",
+  "sourceType": "google_maps",
+  "capturedAt": "ISO-8601",
+  "rating": 4.7,
+  "userRatingCount": 120,
+  "businessStatus": "OPERATIONAL",
+  "confidence": "high",
+  "searchQuery": "consulta ejecutada",
+  "profile": {
+    "discovery": {
+      "provider": "google_maps",
+      "placeId": "google-place-id",
+      "website": "https://...",
+      "mapsUrl": "https://www.google.com/maps/...",
+      "rating": 4.7,
+      "reviewsCount": 120,
+      "businessStatus": "OPERATIONAL",
+      "sourceType": "google_maps",
+      "capturedAt": "ISO-8601",
+      "searchQuery": "consulta ejecutada",
+      "confidence": "high",
+      "verified": true
+    }
+  }
 }
 ```
+
+SIC es propietario de `id`, `normalized_name`, `status`, `score`, `origin_campaign_id`, `next_research_at`, `last_activity_at`, `created_at` y `updated_at`. Argos no debe inventarlos ni forzarlos. El runtime normaliza aliases históricos y SIC calcula identidad/deduplicación.
 
 ### provider.list
 

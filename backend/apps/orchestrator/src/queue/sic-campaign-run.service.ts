@@ -65,9 +65,10 @@ export class SicCampaignRunService {
         '3. Los resultados de prospecting.browser_maps_search se serializan y persisten automáticamente en SIC por el runtime.',
         '4. No inventes ni escribas executionId; el runtime usa siempre el executionId real de SIC.',
         '5. Usa sic.prospects.upsert solo si necesitas persistir un lote adicional/enriquecido; el runtime inyectará el executionId.',
-        '6. Conserva placeId, teléfono, web, dirección, categoría y URL de Maps cuando existan.',
-        '7. Respeta el objetivo y las consultas del contexto.',
-        '8. Al terminar responde con un resumen breve de la ejecución.',
+        '6. Conserva placeId, teléfono, web, dirección, categoría, URL de Maps, rating, cantidad de reseñas y businessStatus cuando existan.',
+        '7. Usa el contrato canónico Argos -> SIC: los datos de descubrimiento enriquecido deben quedar en profile.discovery. SIC controla id, normalized_name, status, score y timestamps.',
+        '8. Respeta el objetivo y las consultas del contexto.',
+        '9. Al terminar responde con un resumen breve de la ejecución.',
       ].join('\n');
 
       await this.traces.event(run.execution_id, {

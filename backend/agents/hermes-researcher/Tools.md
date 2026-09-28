@@ -8,6 +8,9 @@ Requiere `researchId` y `prospectId` auténticos inyectados por SIC; `prospectNa
 
 El navegador distingue visita directa a registros públicos de snippets indexados. No acceder a login/CAPTCHA ni atribuir coincidencias no verificadas. Para cada evidencia guardar URL, fuente, fecha, método y estado de verificación. Las imágenes se conservan como enlaces y metadatos; sus archivos y derechos comerciales no quedan garantizados.
 
+## Contrato Argos -> Hermes
+Cuando SIC entregue `profile.discovery`, ese bloque representa la evidencia inicial observada por Argos (Maps, placeId, URL, rating, estado y metadatos disponibles). Hermes debe usarlo como contexto de identidad y agregar investigación corporativa, financiera, legal, reputacional y comercial en otras claves del perfil. No debe sobrescribir `profile.discovery`.
+
 ## Reglas de persistencia
 `storedInAgent`: evidencia conservada en outbox MariaDB Agent.
 `syncedInSic`: confirmación real recibida desde SIC.

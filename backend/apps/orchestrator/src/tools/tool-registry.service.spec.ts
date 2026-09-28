@@ -1,5 +1,7 @@
 import { ApprovalsService } from '../approvals/approvals.service';
 import { ArgosBrowserService } from '../browser/argos-browser.service';
+import { HermesBrowserService } from '../hermes/hermes-browser.service';
+import { HermesEvidenceOutboxService } from '../hermes/hermes-evidence-outbox.service';
 import { ProvidersService } from '../providers/providers.service';
 import { GoogleProspectingService } from './google-prospecting.service';
 import { ToolRegistryService } from './tool-registry.service';
@@ -26,6 +28,12 @@ describe('ToolRegistryService', () => {
     generate: jest.fn(),
     status: jest.fn(),
   };
+  const hermesBrowser = { search: jest.fn() };
+  const hermesOutbox = {
+    register: jest.fn(),
+    receive: jest.fn(),
+    hasPending: jest.fn(),
+  };
   const argosBrowser = { search: jest.fn() };
   const argosOutbox = { enqueue: jest.fn() };
   const sic = {
@@ -46,6 +54,8 @@ describe('ToolRegistryService', () => {
       googleProspecting as unknown as GoogleProspectingService,
       videoGenerator as unknown as VideoGeneratorService,
       sic as unknown as SicClientService,
+      hermesBrowser as unknown as HermesBrowserService,
+      hermesOutbox as unknown as HermesEvidenceOutboxService,
       argosBrowser as unknown as ArgosBrowserService,
       argosOutbox as unknown as ArgosSicOutboxService,
     );
@@ -286,6 +296,15 @@ describe('ToolRegistryService', () => {
       campaignId: 'campaign-1',
       prospects: [expect.objectContaining({
         name: 'Taller Uno', city: 'Pereira', sourceType: 'google_maps',
+        activity: 'unknown',
+        profile: expect.objectContaining({
+          discovery: expect.objectContaining({
+            provider: 'google_maps',
+            sourceType: 'google_maps',
+            verified: true,
+            searchQuery: 'automotrices en Pereira',
+          }),
+        }),
       })],
     }));
     expect(sic.upsertProspect).not.toHaveBeenCalled(); // outbox owns the send/ACK
@@ -373,6 +392,16 @@ describe('ToolRegistryService', () => {
         sourceType: 'google_maps',
         rating: 4.8,
         userRatingCount: 21,
+        activity: 'active',
+        profile: expect.objectContaining({
+          discovery: expect.objectContaining({
+            placeId: 'place-1',
+            rating: 4.8,
+            reviewsCount: 21,
+            businessStatus: 'OPERATIONAL',
+            verified: true,
+          }),
+        }),
       }),
     );
     expect(result.persistence).toEqual(
@@ -407,6 +436,23 @@ describe('ToolRegistryService', () => {
 
     expect(sic.upsertProspect).not.toHaveBeenCalled();
     expect(result).not.toHaveProperty('persistence');
+  });
+
+  it('bloquea prospecting.google_search para Argos aunque la tool exista para Hermes', async () => {
+    await expect(
+      service.execute(
+        {
+          tool: 'prospecting.google_search',
+          arguments: { query: 'empresa Pereira' },
+        },
+        {
+          agentId: 'argos-prospector',
+          source: 'interactive',
+        },
+      ),
+    ).rejects.toThrow('Argos no usa prospecting.google_search');
+
+    expect(googleProspecting.searchWeb).not.toHaveBeenCalled();
   });
 
   it('inyecta el executionId real de SIC y rechaza ids inventados', async () => {
