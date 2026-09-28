@@ -122,7 +122,6 @@ export class IvoolveSicIntegrationService {
       const result = await this.runtime.chatAsAgent(sessionId, instruction, agentId, {
         source: 'integration',
         executionId,
-        proposalId: input.proposalId,
         prospectId: input.prospectId,
       });
       await this.traces.finish(executionId, 'completed', {
