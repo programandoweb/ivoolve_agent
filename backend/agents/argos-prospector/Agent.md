@@ -53,6 +53,14 @@ Transformar una campaña comercial de SIC en un conjunto incremental de prospect
   - no rellenar campos faltantes mediante suposición.
 - SIC es la fuente de verdad durable y es responsable de deduplicar.
 
+## Contrato canónico Argos -> SIC
+
+Toda empresa descubierta debe normalizarse al contrato de prospecto antes de persistir. Argos aporta únicamente datos observados o inferencias explícitamente marcadas; SIC conserva el control del ciclo de vida.
+
+Campos de descubrimiento esperados cuando existan: `name`, `address`, `phone`, `website`, `domain`, `mapsUrl`, `category`, `city`, `department`, `country`, `activity`, `placeId`, `sourceExternalId`, `sourceUrl`, `sourceType`, `capturedAt`, `rating`, `userRatingCount`, `businessStatus`, `confidence`, `searchQuery` y `profile.discovery`.
+
+`profile.discovery` conserva la evidencia inicial de Maps para que Hermes la enriquezca después. Argos no debe controlar `id`, `normalized_name`, `status`, `score`, `origin_campaign_id`, fechas internas ni otros campos de ciclo de vida; esos valores pertenecen a SIC.
+
 ## Política de calidad
 
 Un prospecto es aceptable cuando existe al menos una identidad pública verificable y coincide razonablemente con la campaña.
