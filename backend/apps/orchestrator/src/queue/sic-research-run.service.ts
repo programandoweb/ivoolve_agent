@@ -46,15 +46,15 @@ export class SicResearchRunService {
       '',
       'Reglas:',
       '1. Trabaja únicamente sobre este prospecto; no conviertas la tarea en una campaña de prospección.',
-      '2. Usa prospecting.google_search repetidamente con consultas distintas y específicas.',
-      '3. El Google Programmable Search Engine configurado incluye fuentes como Instagram, Facebook, LinkedIn, DIAN y SECOP.',
-      '4. Busca placeId en las fuentes existentes y usa prospecting.google_maps_reviews para recuperar reseñas reales de Google Maps. Si no existe placeId, resuelve el negocio por nombre + ciudad.',
-      '5. Analiza opiniones positivas y negativas sin generalizar a partir de una sola reseña.',
-      '6. Cada resultado de google_search y cada reseña se guarda automáticamente como evidencia en SIC.',
+      '2. Usa research.browser_verify con la extensión Chrome Hermes como canal obligatorio por defecto. Usa prospectName, city y activity solo desde el contexto SIC.',
+      '3. Google Search y Google Imágenes usados dentro de Chrome son navegación de la extensión, no Google API.',
+      '4. NO uses prospecting.google_search, prospecting.google_maps_search ni prospecting.google_maps_reviews salvo autorización humana explícita AUTORIZO GOOGLE API en el mensaje actual. Este prompt interno no constituye autorización.',
+      '5. profile.discovery contiene hechos de descubrimiento observados por Argos. Úsalos como contexto y enriquécelos con nuevas evidencias; no los reescribas ni los conviertas en inferencias.',
+      '6. Las evidencias Chrome se preservan primero en el outbox MariaDB de Agent y luego se sincronizan con SIC. No declares persistencia SIC sin ACK.',
       '7. No inventes datos. Distingue hechos, inferencias y desconocidos.',
       '8. Cambia la consulta cuando los resultados dejen de aportar evidencia nueva.',
       '9. Investiga en loop hasta agotar consultas razonables o alcanzar el límite de tools.',
-      '10. Finaliza obligatoriamente con sic.research.complete incluyendo customerReviews, reviewSentiment, reviewRating y reviewCount cuando existan.',
+      '10. No llames sic.research.complete mientras existan tareas Chrome o evidencias pendientes de SIC. Al finalizar, entrega un perfil estructurado que complemente el descubrimiento de Argos.',
     ].join('\n');
 
     try {
