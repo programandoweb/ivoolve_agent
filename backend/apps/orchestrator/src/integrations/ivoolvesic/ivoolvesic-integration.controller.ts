@@ -5,14 +5,14 @@ import { IvoolveSicIntegrationService } from './ivoolvesic-integration.service';
 class SicCampaignRunDto {
   @IsUUID() execution_id!: string;
   @IsUUID() correlation_id!: string;
-  @IsUUID() campaign_id!: string;
+  @IsString() @MinLength(8) @MaxLength(64) campaign_id!: string;
   @IsString() @MinLength(2) @MaxLength(120) agent_id!: string;
   @IsObject() context!: Record<string, unknown>;
 }
 
 class SicResearchRunDto {
   @IsUUID() researchId!: string;
-  @IsUUID() prospectId!: string;
+  @IsString() @MinLength(8) @MaxLength(64) prospectId!: string;
   @IsString() @MinLength(2) @MaxLength(120) agentId!: string;
   @IsObject() prospect!: Record<string, unknown>;
   @IsArray() sources!: Record<string, unknown>[];
@@ -25,7 +25,7 @@ class SicTestTaskDto {
 }
 
 class SicProposalGenerateDto {
-  @IsUUID() prospectId!: string;
+  @IsString() @MinLength(8) @MaxLength(64) prospectId!: string;
   @IsObject() prospect!: Record<string, unknown>;
   @IsOptional() @IsObject() campaign?: Record<string, unknown>;
   @IsOptional() @IsString() @MaxLength(4000) prompt?: string;
@@ -33,7 +33,7 @@ class SicProposalGenerateDto {
 
 class SicProposalExtendDto {
   @IsUUID() proposalId!: string;
-  @IsUUID() prospectId!: string;
+  @IsString() @MinLength(8) @MaxLength(64) prospectId!: string;
   @IsObject() prospect!: Record<string, unknown>;
   @IsOptional() @IsObject() campaign?: Record<string, unknown>;
   @IsString() @MinLength(1) @MaxLength(12000) currentContent!: string;

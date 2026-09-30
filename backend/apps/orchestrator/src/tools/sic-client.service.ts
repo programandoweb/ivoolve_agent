@@ -49,21 +49,53 @@ export class SicClientService {
     return this.post('internal/orchestration/research/' + researchId + '/fail', { error });
   }
 
-  private async post(path: string, body: unknown): Promise<unknown> {
+  /**
+   * Destino de la persistencia comercial. Modo ERP-CRM (IVOOLVE_CRM_BASE_URL + IVOOLVE_CRM_AGENT_TOKEN): la credencial fija el
+   * tenant en Laravel; el agente nunca envía tenant_id. Sin esas variables se conserva el contrato transitorio de IVOOLVE SIC.
+   */
+  private target(path: string): { url: string; headers: Record<string, string> } {
+    const crmBase = this.config.get<string>('IVOOLVE_CRM_BASE_URL')?.trim();
+    const crmToken = this.config.get<string>('IVOOLVE_CRM_AGENT_TOKEN')?.trim();
+    if (crmBase && crmToken) {
+      return {
+        url: crmBase.replace(/\/+$/, '') + '/api/' + SicClientService.toCrmPath(path),
+        headers: { Authorization: 'Bearer ' + crmToken },
+      };
+    }
     const baseUrl = this.config.get<string>('IVOOLVE_SIC_BASE_URL')?.trim();
     const token = this.config.get<string>('IVOOLVE_SIC_INTERNAL_TOKEN')?.trim();
-    const timeout = Number(this.config.get<string>('IVOOLVE_SIC_TIMEOUT_MS') ?? 15000);
     if (!baseUrl || !token) {
-      throw new ServiceUnavailableException('IVOOLVE_SIC_BASE_URL/IVOOLVE_SIC_INTERNAL_TOKEN no están configurados.');
+      throw new ServiceUnavailableException(
+        'Configura IVOOLVE_CRM_BASE_URL/IVOOLVE_CRM_AGENT_TOKEN (ERP) o IVOOLVE_SIC_BASE_URL/IVOOLVE_SIC_INTERNAL_TOKEN (SIC transitorio).',
+      );
     }
-    const response = await fetch(baseUrl.replace(/\/+$/, '') + '/api/' + path, {
+    return { url: baseUrl.replace(/\/+$/, '') + '/api/' + path, headers: { 'X-Internal-Token': token } };
+  }
+
+  /** Traduce las rutas históricas de SIC a la API interna del CRM del ERP (/api/internal/v1/crm/...). */
+  static toCrmPath(path: string): string {
+    if (path === 'internal/agent/argos/prospects') return 'internal/v1/crm/prospects';
+    const [scope, area, resource, id, action] = path.split('/');
+    if (scope === 'internal' && area === 'agent' && resource === 'campaign-runs' && id && action) {
+      return 'internal/v1/crm/campaign-runs/' + id + '/' + action;
+    }
+    if (scope === 'internal' && area === 'orchestration' && resource === 'research' && id && action) {
+      return 'internal/v1/crm/research-runs/' + id + '/' + (action === 'evidence' ? 'evidences' : action);
+    }
+    return path;
+  }
+
+  private async post(path: string, body: unknown): Promise<unknown> {
+    const timeout = Number(this.config.get<string>('IVOOLVE_SIC_TIMEOUT_MS') ?? 15000);
+    const { url, headers } = this.target(path);
+    const response = await fetch(url, {
       method: 'POST',
-      headers: { Accept:'application/json','Content-Type':'application/json','X-Internal-Token':token },
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(timeout),
     });
     if (!response.ok) {
-      throw new ServiceUnavailableException('Ivoolve SIC respondió ' + response.status + ': ' + (await response.text()).slice(0,300));
+      throw new ServiceUnavailableException('Persistencia comercial respondió ' + response.status + ': ' + (await response.text()).slice(0, 300));
     }
     return response.json();
   }
