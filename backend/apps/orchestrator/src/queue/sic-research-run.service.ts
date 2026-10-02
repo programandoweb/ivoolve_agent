@@ -136,6 +136,7 @@ export class SicResearchRunService {
       });
       throw error;
     }
+  }
 
   private structuredProfile(answer: string): Record<string, unknown> {
     const trimmed = answer.trim();
@@ -160,7 +161,5 @@ export class SicResearchRunService {
       unknowns: [],
       recommendedNextStep: 'Revisar evidencias persistidas por Hermes.',
     };
-  }
-
   }
 }
