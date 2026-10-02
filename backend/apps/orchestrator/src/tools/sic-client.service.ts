@@ -50,11 +50,13 @@ export class SicClientService {
   }
 
   private async post(path: string, body: unknown): Promise<unknown> {
-    const baseUrl = this.config.get<string>('IVOOLVE_SIC_BASE_URL')?.trim();
-    const token = this.config.get<string>('IVOOLVE_SIC_INTERNAL_TOKEN')?.trim();
+    const baseUrl = this.config.get<string>('IVOOLVE_CRM_BASE_URL')?.trim()
+      || this.config.get<string>('IVOOLVE_SIC_BASE_URL')?.trim();
+    const token = this.config.get<string>('IVOOLVE_CRM_SERVICE_TOKEN')?.trim()
+      || this.config.get<string>('IVOOLVE_SIC_INTERNAL_TOKEN')?.trim();
     const timeout = Number(this.config.get<string>('IVOOLVE_SIC_TIMEOUT_MS') ?? 15000);
     if (!baseUrl || !token) {
-      throw new ServiceUnavailableException('IVOOLVE_SIC_BASE_URL/IVOOLVE_SIC_INTERNAL_TOKEN no están configurados.');
+      throw new ServiceUnavailableException('IVOOLVE_CRM_BASE_URL/IVOOLVE_CRM_SERVICE_TOKEN (o compatibilidad SIC) no están configurados.');
     }
     const response = await fetch(baseUrl.replace(/\/+$/, '') + '/api/' + path, {
       method: 'POST',
