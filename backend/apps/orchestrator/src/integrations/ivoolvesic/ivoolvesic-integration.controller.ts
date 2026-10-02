@@ -12,7 +12,7 @@ class SicCampaignRunDto {
 
 class SicResearchRunDto {
   @IsUUID() researchId!: string;
-  @IsUUID() prospectId!: string;
+  @IsString() @MinLength(16) @MaxLength(64) prospectId!: string;
   @IsString() @MinLength(2) @MaxLength(120) agentId!: string;
   @IsObject() prospect!: Record<string, unknown>;
   @IsArray() sources!: Record<string, unknown>[];
