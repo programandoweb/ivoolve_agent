@@ -54,7 +54,38 @@ export class SicResearchRunService {
       '7. No inventes datos. Distingue hechos, inferencias y desconocidos.',
       '8. Cambia la consulta cuando los resultados dejen de aportar evidencia nueva.',
       '9. Investiga en loop hasta agotar consultas razonables o alcanzar el límite de tools.',
-      '10. No llames sic.research.complete mientras existan tareas Chrome o evidencias pendientes de SIC. Al finalizar, entrega un perfil estructurado que complemente el descubrimiento de Argos.',
+      '10. No llames sic.research.complete mientras existan tareas Chrome o evidencias pendientes de SIC.',
+      '11. Al finalizar llama sic.research.complete con profile siguiendo EXACTAMENTE el schema indicado abajo. Además, tu respuesta final debe ser exclusivamente el mismo JSON, sin Markdown ni texto adicional.',
+      '',
+      'SCHEMA JSON OBLIGATORIO:',
+      JSON.stringify({
+        prospect: {
+          legal_name: null,
+          contact_name: null,
+          document_type: null,
+          document_number: null,
+          email: null,
+          phone: null,
+          mobile: null,
+          website: null,
+          domain: null,
+          maps_url: null,
+          address: null,
+          city: null,
+          region: null,
+          country_code: null,
+          sector: null,
+          description: null,
+        },
+        activity: 'unknown',
+        corporate: {},
+        digital_presence: { social_profiles: [] },
+        commercial: { products_services: [], target_market: null, opportunities: [], pain_points: [] },
+        compliance: {},
+        unknowns: [],
+        confidence: 0,
+        sources: [],
+      }),
     ].join('\n');
 
     try {
@@ -78,13 +109,10 @@ export class SicResearchRunService {
       // Fallback determinístico: si el modelo no llamó la tool final, cerramos el
       // run sin dejarlo colgado. ResearchService conserva el primer perfil rico
       // si Hermes ya completó la investigación.
-      await this.sic.completeResearch(run.researchId, {
-        activity: 'unknown',
-        summary: result.answer,
-        confidence: 'pending_structured_confirmation',
-        unknowns: [],
-        recommendedNextStep: 'Revisar evidencias persistidas por Hermes.',
-      });
+      await this.sic.completeResearch(
+        run.researchId,
+        this.structuredProfile(result.answer),
+      );
 
       await this.traces.finish(run.researchId, 'completed', {
         stage: 'completed',
@@ -108,5 +136,31 @@ export class SicResearchRunService {
       });
       throw error;
     }
+
+  private structuredProfile(answer: string): Record<string, unknown> {
+    const trimmed = answer.trim();
+    const candidate = trimmed
+      .replace(/^\`\`\`(?:json)?\s*/i, '')
+      .replace(/\s*\`\`\`$/, '')
+      .trim();
+
+    try {
+      const parsed = JSON.parse(candidate) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // La tool pudo haber completado el perfil; este fallback conserva la salida para auditoría.
+    }
+
+    return {
+      activity: 'unknown',
+      summary: answer,
+      confidence: 0,
+      unknowns: [],
+      recommendedNextStep: 'Revisar evidencias persistidas por Hermes.',
+    };
+  }
+
   }
 }
