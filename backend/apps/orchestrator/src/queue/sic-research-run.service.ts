@@ -148,7 +148,10 @@ export class SicResearchRunService {
     try {
       const parsed = JSON.parse(candidate) as unknown;
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        return parsed as Record<string, unknown>;
+        const profile = parsed as Record<string, unknown>;
+        if (typeof profile.tool !== 'string') {
+          return profile;
+        }
       }
     } catch {
       // La tool pudo haber completado el perfil; este fallback conserva la salida para auditoría.
