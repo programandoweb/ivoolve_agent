@@ -184,10 +184,14 @@ export class ToolRegistryService {
 
   parse(candidate: string): ToolCallEnvelope | null {
     const trimmed = candidate.trim();
-    if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return null;
+    const normalized = trimmed
+      .replace(/^\`\`\`(?:json)?\\s*/i, '')
+      .replace(/\\s*\`\`\`$/, '')
+      .trim();
+    if (!normalized.startsWith('{') || !normalized.endsWith('}')) return null;
 
     try {
-      const parsed = JSON.parse(trimmed) as ToolCallEnvelope;
+      const parsed = JSON.parse(normalized) as ToolCallEnvelope;
       if (!parsed || typeof parsed.tool !== 'string') return null;
       return parsed;
     } catch {
